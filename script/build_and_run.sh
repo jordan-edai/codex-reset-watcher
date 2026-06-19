@@ -5,7 +5,7 @@ MODE="${1:-run}"
 PRODUCT_NAME="CodexResetWatcher"
 APP_NAME="Codex Reset Watcher"
 BUNDLE_ID="com.jordanedai.codex-reset-watcher"
-VERSION="0.1.0"
+VERSION="0.2.0"
 BUILD_NUMBER="1"
 MIN_SYSTEM_VERSION="14.0"
 CONFIGURATION="${CONFIGURATION:-debug}"
@@ -21,6 +21,7 @@ APP_RESOURCES="$APP_CONTENTS/Resources"
 APP_BINARY="$APP_MACOS/$PRODUCT_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 APP_ICON="$ROOT_DIR/Assets/AppIcon.icns"
+HEADER_ARTWORK="$ROOT_DIR/Assets/UsageHeader.png"
 
 pkill -x "$PRODUCT_NAME" >/dev/null 2>&1 || true
 
@@ -43,6 +44,9 @@ cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
 if [[ -f "$APP_ICON" ]]; then
   cp "$APP_ICON" "$APP_RESOURCES/AppIcon.icns"
+fi
+if [[ -f "$HEADER_ARTWORK" ]]; then
+  cp "$HEADER_ARTWORK" "$APP_RESOURCES/UsageHeader.png"
 fi
 
 /usr/bin/plutil -create xml1 "$INFO_PLIST"

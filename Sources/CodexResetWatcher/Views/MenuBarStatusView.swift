@@ -9,11 +9,11 @@ struct MenuBarStatusView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("\(store.availableCount) reset\(store.availableCount == 1 ? "" : "s")")
-                        .font(.headline)
+                    Text("Codex limits")
+                        .font(.system(size: 18, weight: .semibold, design: .rounded))
                     Text(DateFormatting.checked(store.lastChecked))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.subheadline)
+                        .foregroundStyle(CodexPalette.secondaryText)
                 }
                 Spacer()
                 if store.isRefreshing {
@@ -22,28 +22,53 @@ struct MenuBarStatusView: View {
                 }
             }
 
-            if let errorMessage = store.errorMessage {
-                Text(errorMessage)
-                    .font(.caption)
+            ForEach(store.errorMessages, id: \.self) { message in
+                Text(message)
+                    .font(.subheadline)
                     .foregroundStyle(.orange)
-                    .lineLimit(3)
+                    .lineLimit(2)
             }
 
             VStack(alignment: .leading, spacing: 8) {
+                ForEach(store.usageWindows) { window in
+                    HStack {
+                        Image(systemName: window.kind == .weekly ? "calendar" : "clock")
+                            .foregroundStyle(CodexPalette.secondaryText)
+                        Text(window.title)
+                            .font(.callout)
+                        Spacer()
+                        Text(remainingText(window.remainingPercent))
+                            .font(.callout)
+                            .fontWeight(.semibold)
+                            .monospacedDigit()
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: store.statusSymbolName)
+                        .foregroundStyle(CodexPalette.secondaryText)
+                    Text(store.nudge.title)
+                        .font(.body.weight(.medium))
+                        .lineLimit(1)
+                    Spacer()
+                }
+
                 ForEach(store.availableCredits.prefix(4)) { credit in
                     HStack {
                         Image(systemName: "calendar.badge.clock")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(CodexPalette.secondaryText)
                         Text(DateFormatting.compact(credit.expiresAt))
-                            .font(.callout.weight(.medium))
+                            .font(.body.weight(.medium))
                         Spacer()
                     }
                 }
 
-                if store.availableCredits.isEmpty, store.errorMessage == nil {
+                if store.availableCredits.isEmpty, store.creditsErrorMessage == nil {
                     Text("No available resets")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .font(.body)
+                        .foregroundStyle(CodexPalette.secondaryText)
                 }
             }
 
@@ -72,6 +97,13 @@ struct MenuBarStatusView: View {
             }
         }
         .padding(14)
-        .frame(width: 270)
+        .frame(width: 330)
+    }
+
+    private func remainingText(_ value: Int?) -> String {
+        guard let value else {
+            return "Unknown"
+        }
+        return "\(value)% left"
     }
 }

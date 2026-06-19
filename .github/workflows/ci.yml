@@ -20,12 +20,17 @@ jobs:
       - name: Build release
         run: swift build -c release --jobs 1
 
+      - name: Test
+        run: swift test --jobs 1
+
       - name: Package app bundle
-        run: ./script/build_and_run.sh --package
+        run: ./script/package.sh
 
       - name: Verify app bundle
         run: |
           test -d "dist/Codex Reset Watcher.app"
           test -f "dist/Codex Reset Watcher.app/Contents/Resources/AppIcon.icns"
+          test -f "dist/Codex Reset Watcher.app/Contents/Resources/UsageHeader.png"
           plutil -lint "dist/Codex Reset Watcher.app/Contents/Info.plist"
           codesign --verify --deep --strict --verbose=2 "dist/Codex Reset Watcher.app"
+          zipinfo -1 "dist/Codex Reset Watcher.zip" | grep -q "Codex Reset Watcher.app/Contents/MacOS/CodexResetWatcher"
