@@ -2,56 +2,113 @@ import SwiftUI
 
 struct CreditRowView: View {
     let credit: ResetCredit
+    var ordinal: Int?
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .center, spacing: 12) {
             Image(systemName: credit.isAvailable ? "checkmark.seal.fill" : "clock.badge.xmark")
                 .font(.title3)
-                .foregroundStyle(credit.isAvailable ? .green : .secondary)
+                .foregroundStyle(urgencyTint)
                 .frame(width: 26)
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text(credit.title ?? "Codex reset credit")
-                        .font(.headline)
-                        .lineLimit(1)
-                    Spacer()
-                    Text(credit.status.capitalized)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(credit.isAvailable ? .green : .secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(.quaternary, in: Capsule())
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(alignment: .firstTextBaseline, spacing: 7) {
+                    Text("Expires")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(CodexPalette.secondaryText)
+                    Text(DateFormatting.expiry(credit.expiresAt))
+                        .font(.system(size: 21, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+                        .monospacedDigit()
                 }
 
-                Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 6) {
-                    GridRow {
-                        Text("Granted")
-                            .foregroundStyle(.secondary)
-                        Text(DateFormatting.full(credit.grantedAt))
-                    }
-                    GridRow {
-                        Text("Expires")
-                            .foregroundStyle(.secondary)
-                        Text(DateFormatting.full(credit.expiresAt))
-                            .fontWeight(credit.isAvailable ? .semibold : .regular)
-                    }
-                    if credit.redeemedAt != nil {
-                        GridRow {
-                            Text("Redeemed")
-                                .foregroundStyle(.secondary)
-                            Text(DateFormatting.full(credit.redeemedAt))
-                        }
-                    }
+                HStack(spacing: 6) {
+                    Text(ordinal.map { "Reset \($0)" } ?? "Reset")
+                        .font(.subheadline.weight(.semibold))
+                    Text(credit.title ?? "Codex reset credit")
+                        .font(.subheadline)
+                        .foregroundStyle(CodexPalette.secondaryText)
+                        .lineLimit(1)
                 }
-                .font(.callout)
+
+                if let hint = urgency.hint {
+                    Text(hint)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(urgencyTint)
+                        .lineLimit(1)
+                }
             }
+
+            Spacer()
+
+            Text(urgency.badge)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(badgeForeground)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(urgencyTint, in: Capsule())
         }
-        .padding(14)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .padding(12)
+        .background(rowBackground, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(.quaternary)
+                .stroke(urgencyTint.opacity(borderOpacity))
+        }
+        .shadow(color: .black.opacity(0.035), radius: 8, y: 1)
+    }
+
+    private var urgency: ResetExpiryUrgency {
+        ResetExpiryUrgency.make(
+            expiresAt: DateFormatting.parse(credit.expiresAt),
+            isAvailable: credit.isAvailable
+        )
+    }
+
+    private var urgencyTint: Color {
+        switch urgency.level {
+        case .normal:
+            return CodexPalette.availableGreen
+        case .approaching:
+            return CodexPalette.attentionAmber
+        case .soon:
+            return CodexPalette.warningOrange
+        case .urgent, .expired:
+            return CodexPalette.urgentRed
+        case .inactive, .unknown:
+            return CodexPalette.secondaryText
+        }
+    }
+
+    private var rowBackground: Color {
+        switch urgency.level {
+        case .normal:
+            return CodexPalette.cardBackground
+        case .approaching, .soon, .urgent, .expired:
+            return urgencyTint.opacity(0.08)
+        case .inactive, .unknown:
+            return CodexPalette.cardBackground
+        }
+    }
+
+    private var borderOpacity: Double {
+        switch urgency.level {
+        case .normal, .inactive, .unknown:
+            return 0.18
+        case .approaching:
+            return 0.44
+        case .soon, .urgent, .expired:
+            return 0.56
+        }
+    }
+
+    private var badgeForeground: Color {
+        switch urgency.level {
+        case .approaching:
+            return .black.opacity(0.82)
+        case .normal, .soon, .urgent, .expired:
+            return .white
+        case .inactive, .unknown:
+            return .white
         }
     }
 }

@@ -1,13 +1,27 @@
 import Foundation
 
-struct CodexResetCreditsClient: Sendable {
+struct CodexAPIClient: Sendable {
     var codexHome: URL = FileManager.default.homeDirectoryForCurrentUser.appending(path: ".codex")
-    var endpoint: URL = URL(string: "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits")!
+    var resetCreditsEndpoint: URL = URL(string: "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits")!
+    var usageEndpoint: URL = URL(string: "https://chatgpt.com/backend-api/wham/usage")!
+    var timeoutSeconds: TimeInterval = 20
+    var perform: @Sendable (URLRequest) async throws -> (Data, URLResponse) = {
+        try await URLSession.shared.data(for: $0)
+    }
 
-    func fetch() async throws -> ResetCreditsResponse {
+    func fetchResetCredits() async throws -> ResetCreditsResponse {
+        try await fetch(ResetCreditsResponse.self, from: resetCreditsEndpoint)
+    }
+
+    func fetchUsage() async throws -> CodexUsageResponse {
+        try await fetch(CodexUsageResponse.self, from: usageEndpoint)
+    }
+
+    private func fetch<Response: Decodable>(_ responseType: Response.Type, from endpoint: URL) async throws -> Response {
         let auth = try loadAuth()
         var request = URLRequest(url: endpoint)
         request.httpMethod = "GET"
+        request.timeoutInterval = timeoutSeconds
         request.setValue("Bearer \(auth.tokens.accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("Codex Desktop", forHTTPHeaderField: "originator")
         request.setValue("CODEX", forHTTPHeaderField: "OAI-Product-Sku")
@@ -17,24 +31,33 @@ struct CodexResetCreditsClient: Sendable {
             request.setValue(accountId, forHTTPHeaderField: "ChatGPT-Account-Id")
         }
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await perform(request)
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw ResetCreditsError.invalidResponse
+            throw CodexAPIError.invalidResponse
         }
         guard (200..<300).contains(httpResponse.statusCode) else {
-            let body = String(data: data, encoding: .utf8) ?? ""
-            throw ResetCreditsError.httpStatus(httpResponse.statusCode, body)
+            if httpResponse.statusCode == 429 {
+                throw CodexAPIError.rateLimited(httpResponse.value(forHTTPHeaderField: "Retry-After"))
+            }
+            throw CodexAPIError.httpStatus(httpResponse.statusCode)
+        }
+        guard !data.isEmpty else {
+            throw CodexAPIError.emptyResponse
+        }
+        if let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type"),
+           !contentType.localizedCaseInsensitiveContains("json") {
+            throw CodexAPIError.unexpectedContentType(contentType)
         }
 
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
-        return try decoder.decode(ResetCreditsResponse.self, from: data)
+        return try decoder.decode(Response.self, from: data)
     }
 
     private func loadAuth() throws -> CodexAuth {
         let authURL = resolvedCodexHome().appending(path: "auth.json")
         guard FileManager.default.fileExists(atPath: authURL.path) else {
-            throw ResetCreditsError.missingAuth(authURL.path)
+            throw CodexAPIError.missingAuth(authURL.path)
         }
 
         let data = try Data(contentsOf: authURL)
@@ -43,7 +66,7 @@ struct CodexResetCreditsClient: Sendable {
         do {
             return try decoder.decode(CodexAuth.self, from: data)
         } catch {
-            throw ResetCreditsError.invalidAuth(authURL.path)
+            throw CodexAPIError.invalidAuth(authURL.path)
         }
     }
 
@@ -68,11 +91,14 @@ struct CodexResetCreditsClient: Sendable {
     }
 }
 
-enum ResetCreditsError: LocalizedError {
+enum CodexAPIError: LocalizedError {
     case missingAuth(String)
     case invalidAuth(String)
     case invalidResponse
-    case httpStatus(Int, String)
+    case emptyResponse
+    case unexpectedContentType(String)
+    case rateLimited(String?)
+    case httpStatus(Int)
 
     var errorDescription: String? {
         switch self {
@@ -81,12 +107,21 @@ enum ResetCreditsError: LocalizedError {
         case let .invalidAuth(path):
             return "Could not read Codex login at \(path). Open Codex Desktop and sign in again."
         case .invalidResponse:
-            return "The Codex reset endpoint returned an invalid response."
-        case let .httpStatus(status, body):
+            return "The Codex endpoint returned an invalid response."
+        case .emptyResponse:
+            return "The Codex endpoint returned an empty response."
+        case let .unexpectedContentType(contentType):
+            return "The Codex endpoint returned \(contentType) instead of JSON. Open Codex Desktop and sign in again."
+        case let .rateLimited(retryAfter):
+            if let retryAfter, !retryAfter.isEmpty {
+                return "Codex rate-limited this check. Try again after \(retryAfter) seconds."
+            }
+            return "Codex rate-limited this check. Try again later."
+        case let .httpStatus(status):
             if status == 401 || status == 403 {
                 return "Codex rejected the saved login. Open Codex Desktop and sign in again."
             }
-            return body.isEmpty ? "The Codex reset endpoint returned HTTP \(status)." : "The Codex reset endpoint returned HTTP \(status): \(body)"
+            return "The Codex endpoint returned HTTP \(status)."
         }
     }
 }

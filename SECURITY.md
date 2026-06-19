@@ -15,7 +15,10 @@ Do not paste Codex auth tokens, `~/.codex/auth.json`, screenshots containing sec
 Codex Reset Watcher:
 
 - reads the local Codex Desktop auth file at `~/.codex/auth.json`
-- sends the saved Codex bearer token only to `https://chatgpt.com/backend-api/wham/rate-limit-reset-credits`
+- sends the saved Codex bearer token only to:
+  - `https://chatgpt.com/backend-api/wham/usage`
+  - `https://chatgpt.com/backend-api/wham/rate-limit-reset-credits`
+- sends the active account id in the `ChatGPT-Account-Id` header to those same endpoints when Codex auth exposes it
 - does not redeem resets
 - does not write to the auth file
 - does not store tokens elsewhere

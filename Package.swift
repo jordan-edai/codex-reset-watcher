@@ -14,6 +14,11 @@ let package = Package(
         .executableTarget(
             name: "CodexResetWatcher",
             path: "Sources/CodexResetWatcher"
+        ),
+        .testTarget(
+            name: "CodexResetWatcherTests",
+            dependencies: ["CodexResetWatcher"],
+            path: "Tests/CodexResetWatcherTests"
         )
     ]
 )

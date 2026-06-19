@@ -2,11 +2,17 @@
 
 <img src="Assets/AppIcon.png" width="128" alt="Codex Reset Watcher icon">
 
-Unofficial macOS utility for checking banked Codex rate-limit reset credits.
+Unofficial macOS utility for checking Codex rate-limit windows and banked reset credits.
 
-It reads your existing local Codex Desktop login from `~/.codex/auth.json`, calls the same internal Codex Desktop endpoint used by the app, and shows available reset credits plus expiry dates in a normal window and menu-bar popover.
+It reads your existing local Codex Desktop login from `~/.codex/auth.json`, calls the same internal Codex Desktop endpoints used by the app, and shows:
 
-Codex Reset Watcher is read-only. It does not redeem resets or modify your account.
+- current 5-hour usage remaining
+- current weekly usage remaining
+- banked reset credits and expiry dates
+- expiry urgency warnings as reset credits get closer to lapsing
+- a reset-use nudge based on remaining 5h/weekly capacity, reset timing, reset-credit expiry, and reset credits in the bank
+
+Codex Reset Watcher is read-only. It does not redeem resets, reset usage, modify your account, or send analytics.
 
 ## Requirements
 
@@ -35,13 +41,31 @@ open "dist/Codex Reset Watcher.app"
 
 The script uses SwiftPM and writes SwiftPM scratch files under `/tmp/codex-reset-watcher-build` to avoid file-provider issues in synced folders.
 
+## Nudge Logic
+
+The app uses rule-based advice from the data Codex returns for the current signed-in account. It does not use account-specific hardcoding.
+
+- Low weekly room, resets banked, and weekly refresh far away: push the work and use a reset if Codex blocks meaningful work.
+- Healthy weekly room but low 5-hour room: wait if the 5-hour refill is close, but treat it as a deadline call if the refill is still hours away.
+- Healthy weekly room with weekly refresh close: keep the reset banked.
+- Reset credit expiring today: show a use-it-or-lose-it warning before conservative hold advice.
+
+Reset-credit rows also change urgency as expiry gets close: available, this week, expires soon, ends today, or expired.
+
+## Visual Assets
+
+`Assets/AppIconSource.png` and `Assets/UsageHeader.png` are AI-generated artwork created for this project. They are included with the MIT-licensed source and are not OpenAI logos or product marks.
+
 ## What It Calls
 
 ```text
+GET https://chatgpt.com/backend-api/wham/usage
 GET https://chatgpt.com/backend-api/wham/rate-limit-reset-credits
 ```
 
-Headers are built from the existing Codex Desktop auth file. The app does not redeem resets, mutate account state, or store your token anywhere else.
+Headers are built from the existing Codex Desktop auth file. The app sends the saved bearer token in the `Authorization` header and, when available, the active account id in the `ChatGPT-Account-Id` header to those endpoints. It does not redeem resets, mutate account state, or store your token anywhere else.
+
+`/wham/usage` currently provides the 5-hour and weekly rate-limit windows. `/wham/rate-limit-reset-credits` provides detailed reset-credit expiry dates. These endpoints are internal and can change without notice.
 
 ## Privacy
 
@@ -50,10 +74,17 @@ See [PRIVACY.md](PRIVACY.md).
 ## Limitations
 
 - This is unofficial and not affiliated with OpenAI.
-- The endpoint is internal and may change without notice.
+- The endpoints are internal and may change without notice.
+- Usage and reset-credit fields may differ by Codex plan, account type, region, or app version.
 - The release app is ad-hoc signed unless a maintainer publishes a Developer ID notarized build.
 
 ## Maintainers
+
+Run tests:
+
+```bash
+swift test --scratch-path /tmp/codex-reset-watcher-test --jobs 1
+```
 
 Package a release zip:
 
