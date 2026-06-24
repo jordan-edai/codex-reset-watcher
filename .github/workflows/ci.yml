@@ -34,3 +34,5 @@ jobs:
           plutil -lint "dist/Codex Reset Watcher.app/Contents/Info.plist"
           codesign --verify --deep --strict --verbose=2 "dist/Codex Reset Watcher.app"
           zipinfo -1 "dist/Codex Reset Watcher.zip" | grep -q "Codex Reset Watcher.app/Contents/MacOS/CodexResetWatcher"
+          VERSION="$(plutil -extract CFBundleShortVersionString raw -o - "dist/Codex Reset Watcher.app/Contents/Info.plist")"
+          zipinfo -1 "dist/Codex.Reset.Watcher.v${VERSION}.zip" | grep -q "Codex Reset Watcher.app/Contents/MacOS/CodexResetWatcher"
