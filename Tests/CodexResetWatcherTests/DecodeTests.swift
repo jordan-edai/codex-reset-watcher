@@ -160,6 +160,45 @@ final class CodexAPIClientTests: XCTestCase {
         XCTAssertEqual(store.availableCount, 2)
     }
 
+    @MainActor
+    func testMenuBarTitleShowsWeeklyRemainingWhenUsageIsLoaded() async throws {
+        let client = try makeClient { request in
+            switch request.url?.path {
+            case "/backend-api/wham/rate-limit-reset-credits":
+                let body = #"{"available_count":1,"credits":[]}"#.data(using: .utf8)!
+                return (body, testHTTPResponse(status: 200, contentType: "application/json"))
+
+            case "/backend-api/wham/usage":
+                let body = """
+                {
+                  "plan_type": "pro",
+                  "rate_limit": {
+                    "primary_window": {
+                      "used_percent": 71,
+                      "limit_window_seconds": 18000,
+                      "reset_after_seconds": 3600
+                    },
+                    "secondary_window": {
+                      "used_percent": 37,
+                      "limit_window_seconds": 604800,
+                      "reset_after_seconds": 259200
+                    }
+                  }
+                }
+                """.data(using: .utf8)!
+                return (body, testHTTPResponse(status: 200, contentType: "application/json"))
+
+            default:
+                throw TestError.unexpectedEndpoint
+            }
+        }
+        let store = ResetCreditsStore(client: client)
+
+        await store.refresh()
+
+        XCTAssertEqual(store.menuBarTitle, "63% | week")
+    }
+
     private func makeClient(
         authJSON: String? = nil,
         perform: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)

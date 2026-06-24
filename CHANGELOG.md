@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 - 2026-06-24
+
+- Updates the menu bar title to show weekly usage remaining, for example `63% | week`.
+- Keeps the status icon in the menu bar so the weekly meter is glanceable without opening the popover.
+
 ## 0.2.0 - 2026-06-19
 
 - Adds 5-hour and weekly Codex usage windows.

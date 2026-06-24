@@ -22,11 +22,9 @@ final class ResetCreditsStore: ObservableObject {
     }
 
     var menuBarTitle: String {
-        if let fiveHour = usageWindows.first(where: { $0.kind == .fiveHour }),
-           let weekly = usageWindows.first(where: { $0.kind == .weekly }),
-           let fiveRemaining = fiveHour.remainingPercent,
+        if let weekly = usageWindows.first(where: { $0.kind == .weekly }),
            let weeklyRemaining = weekly.remainingPercent {
-            return "5h \(fiveRemaining)% · W \(weeklyRemaining)% · \(availableCount)R"
+            return "\(weeklyRemaining)% | week"
         }
         return "\(availableCount) reset\(availableCount == 1 ? "" : "s")"
     }
