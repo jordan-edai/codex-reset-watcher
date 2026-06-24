@@ -30,6 +30,7 @@ open "dist/Codex Reset Watcher.app"
 
 ## Pull Requests
 
+- Read [AGENTS.md](AGENTS.md) before making changes in this repo.
 - Keep the app small and read-only.
 - Do not add telemetry.
 - Do not store, print, upload, or copy Codex auth tokens.

@@ -80,6 +80,9 @@ See [PRIVACY.md](PRIVACY.md).
 
 ## Maintainers
 
+Current progress, decisions, and future-agent notes live in
+[PROJECT_STATUS.md](PROJECT_STATUS.md) and [AGENTS.md](AGENTS.md).
+
 Run tests:
 
 ```bash
