@@ -3,7 +3,12 @@ import SwiftUI
 @main
 struct CodexResetWatcherApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @AppStorage("menuBarMetric") private var menuBarMetricRawValue = MenuBarMetric.weekly.rawValue
     @StateObject private var store = ResetCreditsStore()
+
+    private var menuBarMetric: MenuBarMetric {
+        MenuBarMetric(rawValue: menuBarMetricRawValue) ?? .weekly
+    }
 
     var body: some Scene {
         WindowGroup("Codex Reset Watcher", id: "main") {
@@ -26,14 +31,14 @@ struct CodexResetWatcherApp: App {
         }
 
         MenuBarExtra {
-            MenuBarStatusView(store: store)
+            MenuBarStatusView(store: store, menuBarMetricRawValue: $menuBarMetricRawValue)
                 .task {
                     store.start()
                 }
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: store.statusSymbolName)
-                Text(store.menuBarTitle)
+                Text(store.menuBarTitle(for: menuBarMetric))
                     .monospacedDigit()
             }
         }

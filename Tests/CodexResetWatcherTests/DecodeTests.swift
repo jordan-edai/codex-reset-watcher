@@ -161,7 +161,7 @@ final class CodexAPIClientTests: XCTestCase {
     }
 
     @MainActor
-    func testMenuBarTitleShowsWeeklyRemainingWhenUsageIsLoaded() async throws {
+    func testMenuBarTitleShowsSelectedUsageWindowWhenUsageIsLoaded() async throws {
         let client = try makeClient { request in
             switch request.url?.path {
             case "/backend-api/wham/rate-limit-reset-credits":
@@ -197,6 +197,8 @@ final class CodexAPIClientTests: XCTestCase {
         await store.refresh()
 
         XCTAssertEqual(store.menuBarTitle, "63% | week")
+        XCTAssertEqual(store.menuBarTitle(for: .weekly), "63% | week")
+        XCTAssertEqual(store.menuBarTitle(for: .fiveHour), "29% | 5h")
     }
 
     private func makeClient(

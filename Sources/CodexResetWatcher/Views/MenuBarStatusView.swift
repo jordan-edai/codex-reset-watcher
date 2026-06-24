@@ -3,7 +3,20 @@ import SwiftUI
 
 struct MenuBarStatusView: View {
     @ObservedObject var store: ResetCreditsStore
+    @Binding var menuBarMetricRawValue: String
     @Environment(\.openWindow) private var openWindow
+
+    private var menuBarMetric: MenuBarMetric {
+        MenuBarMetric(rawValue: menuBarMetricRawValue) ?? .weekly
+    }
+
+    private var menuBarMetricSelection: Binding<String> {
+        Binding {
+            menuBarMetric.rawValue
+        } set: { newValue in
+            menuBarMetricRawValue = MenuBarMetric(rawValue: newValue)?.rawValue ?? MenuBarMetric.weekly.rawValue
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -29,6 +42,24 @@ struct MenuBarStatusView: View {
                     .lineLimit(2)
             }
 
+            HStack(spacing: 10) {
+                Label("Menu bar", systemImage: "menubar.rectangle")
+                    .font(.callout)
+                    .foregroundStyle(CodexPalette.secondaryText)
+
+                Spacer()
+
+                Picker("Menu bar display", selection: menuBarMetricSelection) {
+                    ForEach(MenuBarMetric.allCases) { metric in
+                        Text(metric.pickerTitle)
+                            .tag(metric.rawValue)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .frame(width: 132)
+            }
+
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(store.usageWindows) { window in
                     HStack {
@@ -37,6 +68,11 @@ struct MenuBarStatusView: View {
                         Text(window.title)
                             .font(.callout)
                         Spacer()
+                        if menuBarMetric.matches(window.kind) {
+                            Image(systemName: "menubar.rectangle")
+                                .font(.caption)
+                                .foregroundStyle(CodexPalette.secondaryText)
+                        }
                         Text(remainingText(window.remainingPercent))
                             .font(.callout)
                             .fontWeight(.semibold)

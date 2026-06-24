@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.3 - 2026-06-24
+
+- Adds a menu-bar display toggle in the dropdown so each user can choose
+  whether the menu bar shows weekly remaining usage or 5-hour remaining usage.
+- Persists the selected display mode locally with macOS app storage.
+
 ## 0.2.2 - 2026-06-24
 
 - Fixes the visible macOS menu bar label so the status icon renders beside the

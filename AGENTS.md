@@ -10,9 +10,9 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Public GitHub repo: `https://github.com/jordan-edai/codex-reset-watcher`
 - Canonical local path: `/Users/everydayai/Documents/!Codex Projects/Rate Refresher Project`
 - Compatibility path: `/Users/everydayai/Documents/Rate Refresher Project`
-- Latest shipped release: `v0.2.2`
+- Latest shipped release: `v0.2.3`
 - Check `git log --oneline --decorate -5` for the current `main` commit; this
-  note tracks the repo state through the `v0.2.2` patch release.
+  note tracks the repo state through the `v0.2.3` display-toggle release.
 - App bundle version is set in `script/build_and_run.sh`.
 
 ## Product Decisions
@@ -32,6 +32,8 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Use an explicit SwiftUI `HStack` label for `MenuBarExtra`; a `Label` can
   collapse to icon-only in the real macOS menu bar even when the title string
   itself is correct.
+- The dropdown includes a persisted `Menu bar` segmented control. `Week` shows
+  weekly remaining usage, and `5h` shows the 5-hour remaining usage.
 - Reset count should use server `available_count` when provided so malformed
   detail rows do not undercount banked resets.
 

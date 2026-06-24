@@ -17,13 +17,13 @@ https://github.com/jordan-edai/codex-reset-watcher
 Current release:
 
 ```text
-v0.2.2
+v0.2.3
 ```
 
 Latest tracked release state:
 
 ```text
-v0.2.2 menu bar visibility patch
+v0.2.3 menu bar metric toggle
 ```
 
 ## What Is Shipped
@@ -38,17 +38,20 @@ v0.2.2 menu bar visibility patch
   versioned release zip.
 - `v0.2.2`: fixed the actual macOS menu bar rendering so the status icon and
   weekly text are visible together instead of collapsing to icon-only.
+- `v0.2.3`: added a dropdown toggle for choosing whether the menu bar shows
+  weekly remaining usage or 5-hour remaining usage.
 
 ## Current GitHub State
 
 - Repo is public.
 - Repo description: `Local-first macOS menu bar app for Codex usage limits and reset credits.`
-- Latest release is `v0.2.2`.
+- Latest release is `v0.2.3`.
 - `v0.2.0` release asset cleanup was completed; the duplicate generic
   `Codex.Reset.Watcher.zip` was removed and the versioned zip was kept.
 - PR #1 shipped usage limits and reset nudges.
 - PR #2 shipped the weekly menu bar title.
 - PR #4 fixed the visible menu bar label and versioned release upload path.
+- PR #5 added the menu bar metric toggle.
 
 ## Key Decisions
 

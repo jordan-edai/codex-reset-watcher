@@ -22,11 +22,23 @@ final class ResetCreditsStore: ObservableObject {
     }
 
     var menuBarTitle: String {
-        if let weekly = usageWindows.first(where: { $0.kind == .weekly }),
-           let weeklyRemaining = weekly.remainingPercent {
-            return "\(weeklyRemaining)% | week"
+        menuBarTitle(for: .weekly)
+    }
+
+    func menuBarTitle(for metric: MenuBarMetric) -> String {
+        if let window = usageWindow(for: metric),
+           let remaining = window.remainingPercent {
+            return "\(remaining)% | \(metric.menuBarSuffix)"
         }
-        return "\(availableCount) reset\(availableCount == 1 ? "" : "s")"
+        return resetFallbackTitle
+    }
+
+    func usageWindow(for metric: MenuBarMetric) -> UsageLimitDisplay? {
+        usageWindows.first { metric.matches($0.kind) }
+    }
+
+    private var resetFallbackTitle: String {
+        "\(availableCount) reset\(availableCount == 1 ? "" : "s")"
     }
 
     var statusSymbolName: String {

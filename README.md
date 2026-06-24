@@ -8,6 +8,7 @@ It reads your existing local Codex Desktop login from `~/.codex/auth.json`, call
 
 - current 5-hour usage remaining
 - current weekly usage remaining
+- menu bar display switching between weekly and 5-hour remaining usage
 - banked reset credits and expiry dates
 - expiry urgency warnings as reset credits get closer to lapsing
 - a reset-use nudge based on remaining 5h/weekly capacity, reset timing, reset-credit expiry, and reset credits in the bank
