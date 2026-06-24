@@ -31,10 +31,10 @@ struct CodexResetWatcherApp: App {
                     store.start()
                 }
         } label: {
-            Label {
-                Text(store.menuBarTitle)
-            } icon: {
+            HStack(spacing: 4) {
                 Image(systemName: store.statusSymbolName)
+                Text(store.menuBarTitle)
+                    .monospacedDigit()
             }
         }
         .menuBarExtraStyle(.window)

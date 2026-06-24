@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.2 - 2026-06-24
+
+- Fixes the visible macOS menu bar label so the status icon renders beside the
+  weekly remaining text, for example `63% | week`.
+- Keeps the `0.2.1` weekly percentage behavior, but corrects the actual
+  menu-bar presentation that could collapse to icon-only.
+
 ## 0.2.1 - 2026-06-24
 
 - Updates the menu bar title to show weekly usage remaining, for example `63% | week`.
