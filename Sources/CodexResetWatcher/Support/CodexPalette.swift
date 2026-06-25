@@ -2,7 +2,7 @@ import SwiftUI
 
 enum CodexPalette {
     static var appBackground: Color {
-        Color(nsColor: .textBackgroundColor)
+        Color(nsColor: .windowBackgroundColor)
     }
 
     static var cardBackground: Color {
@@ -14,15 +14,15 @@ enum CodexPalette {
     }
 
     static var menuPopoverBackground: Color {
-        Color(nsColor: .textBackgroundColor)
+        Color(nsColor: .windowBackgroundColor)
     }
 
     static var rowBackground: Color {
-        Color.primary.opacity(0.045)
+        panelBackground
     }
 
     static var selectedRowBackground: Color {
-        Color.accentColor.opacity(0.08)
+        accent.opacity(0.06)
     }
 
     static var primaryText: Color {
@@ -46,11 +46,15 @@ enum CodexPalette {
     }
 
     static var selectedBorder: Color {
-        Color.accentColor.opacity(0.14)
+        accent.opacity(0.24)
     }
 
     static var accent: Color {
-        Color.accentColor
+        availableGreen
+    }
+
+    static var meterTrack: Color {
+        Color.primary.opacity(0.08)
     }
 
     static var availableGreen: Color {

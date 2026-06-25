@@ -28,6 +28,8 @@ enum CodexStyle {
         static let menuRowMinHeight: CGFloat = 48
         static let artworkWidth: CGFloat = 104
         static let artworkHeight: CGFloat = 58
+        static let menuArtworkWidth: CGFloat = 58
+        static let menuArtworkHeight: CGFloat = 34
     }
 
     enum Typography {
@@ -37,9 +39,9 @@ enum CodexStyle {
         static let cardMetric = Font.system(size: 23, weight: .bold, design: .rounded)
         static let largeMetric = Font.system(size: 38, weight: .bold, design: .rounded)
         static let menuTitle = Font.system(size: 21, weight: .bold, design: .rounded)
-        static let menuRowTitle = Font.system(size: 15, weight: .semibold)
+        static let menuRowTitle = Font.system(size: 15, weight: .semibold, design: .rounded)
         static let menuRowMeta = Font.system(size: 13, weight: .medium)
-        static let menuMetric = Font.system(size: 16, weight: .bold)
+        static let menuMetric = Font.system(size: 16, weight: .bold, design: .rounded)
         static let menuDate = Font.system(size: 15, weight: .bold, design: .rounded)
     }
 }

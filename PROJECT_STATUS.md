@@ -17,13 +17,13 @@ https://github.com/jordan-edai/codex-reset-watcher
 Current release:
 
 ```text
-v0.2.5
+v0.2.6
 ```
 
 Latest tracked release state:
 
 ```text
-v0.2.5 menu and desktop design-system polish
+v0.2.6 unified menu and desktop visual system
 ```
 
 ## What Is Shipped
@@ -45,12 +45,15 @@ v0.2.5 menu and desktop design-system polish
   columns and gutters, split dropdown expiry dates into date/time lines,
   changed the menu bar title to show reset cues such as `57% | Sunday` or
   `80% | 9:50 PM`, and aligned desktop panel styling with the menu.
+- `v0.2.6`: unified the menu popover and desktop window around the same header
+  artwork, green operational accent, rounded typography, and panel/card surface
+  treatment.
 
 ## Current GitHub State
 
 - Repo is public.
 - Repo description: `Local-first macOS menu bar app for Codex usage limits and reset credits.`
-- Latest release is `v0.2.5`.
+- Latest release is `v0.2.6`.
 - `v0.2.0` release asset cleanup was completed; the duplicate generic
   `Codex.Reset.Watcher.zip` was removed and the versioned zip was kept.
 - PR #1 shipped usage limits and reset nudges.

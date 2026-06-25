@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.6 - 2026-06-25
+
+- Aligns the menu bar popover and desktop window around the same app identity,
+  accent color, rounded type scale, and panel surface treatment.
+- Adds the checked-in header artwork to the menu popover header so both
+  surfaces immediately read as Codex Reset Watcher.
+- Moves neutral emphasis away from system blue and back to the shared green
+  operational accent used by reset, nudge, and usage-meter states.
+- Keeps usage-meter tracks visible after normalizing menu rows and desktop cards
+  to the same panel surface.
+
 ## 0.2.5 - 2026-06-24
 
 - Adds a shared SwiftUI design-system layer for Codex Reset Watcher spacing,

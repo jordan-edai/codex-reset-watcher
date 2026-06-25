@@ -167,7 +167,7 @@ struct ContentView: View {
     }
 }
 
-private struct HeaderArtworkView: View {
+struct HeaderArtworkView: View {
     var body: some View {
         if let url = Bundle.main.url(forResource: "UsageHeader", withExtension: "png"),
            let image = NSImage(contentsOf: url) {
@@ -265,7 +265,7 @@ private struct LimitMeterView: View {
         GeometryReader { proxy in
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: CodexStyle.Radius.pill, style: .continuous)
-                    .fill(CodexPalette.rowBackground)
+                    .fill(CodexPalette.meterTrack)
                 RoundedRectangle(cornerRadius: CodexStyle.Radius.pill, style: .continuous)
                     .fill(tint)
                     .frame(width: proxy.size.width * clampedValue)

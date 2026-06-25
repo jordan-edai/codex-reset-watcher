@@ -10,9 +10,9 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Public GitHub repo: `https://github.com/jordan-edai/codex-reset-watcher`
 - Canonical local path: `/Users/everydayai/Documents/!Codex Projects/Rate Refresher Project`
 - Compatibility path: `/Users/everydayai/Documents/Rate Refresher Project`
-- Latest shipped release: `v0.2.5`
+- Latest shipped release: `v0.2.6`
 - Check `git log --oneline --decorate -5` for the current `main` commit; this
-  note tracks the repo state through the `v0.2.5` design-system polish release.
+  note tracks the repo state through the `v0.2.6` unified visual system release.
 - App bundle version is set in `script/build_and_run.sh`.
 
 ## Product Decisions
@@ -42,7 +42,6 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Visual styling should flow through `CodexPalette` and `CodexStyle`. Prefer
   shared spacing, radius, type, row, and panel tokens over one-off view-local
   constants so the menu dropdown and desktop window stay visually aligned.
-- Read `DESIGN_SYSTEM.md` before making visual changes.
 - Read `DESIGN_SYSTEM.md` before making visual changes.
 - The menu dropdown uses fixed icon, content, metric, and date columns. Preserve
   that rhythm when adding rows so labels do not bleed into popover edges.

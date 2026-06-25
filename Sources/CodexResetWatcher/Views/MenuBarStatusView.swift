@@ -34,7 +34,7 @@ struct MenuBarStatusView: View {
 
                 Label("Menu bar", systemImage: "menubar.rectangle")
                     .labelStyle(.titleOnly)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(CodexStyle.Typography.menuRowTitle)
                     .foregroundStyle(CodexPalette.primaryText)
                     .lineLimit(1)
 
@@ -100,7 +100,11 @@ struct MenuBarStatusView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .center, spacing: CodexStyle.Spacing.panel) {
+            HeaderArtworkView()
+                .frame(width: CodexStyle.Size.menuArtworkWidth, height: CodexStyle.Size.menuArtworkHeight)
+                .clipShape(RoundedRectangle(cornerRadius: CodexStyle.Radius.artwork, style: .continuous))
+
             VStack(alignment: .leading, spacing: 3) {
                 Text("Codex limits")
                     .font(CodexStyle.Typography.menuTitle)
@@ -130,7 +134,7 @@ struct MenuBarStatusView: View {
             Image(systemName: window.kind == .weekly ? "calendar" : "clock")
                 .font(.system(size: 14, weight: .semibold))
                 .frame(width: CodexStyle.Size.menuIconColumn)
-                .foregroundStyle(CodexPalette.secondaryText)
+                .foregroundStyle(CodexPalette.primaryText)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(window.title)
@@ -159,7 +163,7 @@ struct MenuBarStatusView: View {
             Image(systemName: "calendar.badge.clock")
                 .font(.system(size: 14, weight: .semibold))
                 .frame(width: CodexStyle.Size.menuIconColumn)
-                .foregroundStyle(CodexPalette.secondaryText)
+                .foregroundStyle(credit.isAvailable ? CodexPalette.availableGreen : CodexPalette.secondaryText)
 
             Text("Reset \(index + 1) expires:")
                 .font(CodexStyle.Typography.menuRowTitle)
@@ -184,7 +188,7 @@ struct MenuBarStatusView: View {
             Image(systemName: store.statusSymbolName)
                 .font(.system(size: 14, weight: .semibold))
                 .frame(width: CodexStyle.Size.menuIconColumn)
-                .foregroundStyle(CodexPalette.secondaryText)
+                .foregroundStyle(nudgeTint)
 
             Text(store.nudge.title)
                 .font(CodexStyle.Typography.menuRowTitle)
@@ -199,6 +203,21 @@ struct MenuBarStatusView: View {
                 .frame(width: CodexStyle.Size.menuDateColumn, alignment: .trailing)
         }
         .codexRow(minHeight: 44)
+    }
+
+    private var nudgeTint: Color {
+        switch store.nudge.tier {
+        case .spend:
+            return CodexPalette.availableGreen
+        case .expiringReset:
+            return CodexPalette.urgentRed
+        case .deadline, .useIfBlocked:
+            return CodexPalette.warningOrange
+        case .waitFiveHour, .hold, .steady:
+            return CodexPalette.accent
+        case .noResets, .unavailable:
+            return CodexPalette.secondaryText
+        }
     }
 
     private var emptyResetRow: some View {
