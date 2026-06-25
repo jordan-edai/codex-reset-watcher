@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MenuBarStatusView: View {
     @ObservedObject var store: ResetCreditsStore
+    @ObservedObject var mainWindowController: MainWindowController
     @Binding var menuBarMetricRawValue: String
     @Environment(\.openWindow) private var openWindow
 
@@ -74,7 +75,7 @@ struct MenuBarStatusView: View {
                 Divider()
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Other accounts")
+                    Text("Cached snapshots")
                         .font(CodexStyle.Typography.menuRowMeta.weight(.semibold))
                         .foregroundStyle(CodexPalette.secondaryText)
                         .padding(.horizontal, 2)
@@ -100,8 +101,7 @@ struct MenuBarStatusView: View {
                 Spacer()
 
                 Button("Open") {
-                    openWindow(id: "main")
-                    NSApp.activate(ignoringOtherApps: true)
+                    showMainWindow()
                 }
 
                 Button("Quit") {
@@ -201,8 +201,7 @@ struct MenuBarStatusView: View {
     private func cachedAccountRow(_ snapshot: CodexAccountSnapshot) -> some View {
         Button {
             store.selectCachedAccount(snapshot.id)
-            openWindow(id: "main")
-            NSApp.activate(ignoringOtherApps: true)
+            showMainWindow()
         } label: {
             HStack(alignment: .center, spacing: CodexStyle.Spacing.rowGap) {
                 Image(systemName: snapshot.isStale() ? "clock.badge.exclamationmark" : "clock.arrow.circlepath")
@@ -316,5 +315,11 @@ struct MenuBarStatusView: View {
             return "Resets: \(DateFormatting.weekdayDate(resetDate)) at \(DateFormatting.timeOnly(resetDate))"
         }
         return "Resets in \(DateFormatting.duration(seconds: window.window.resetAfterSeconds))"
+    }
+
+    private func showMainWindow() {
+        mainWindowController.show {
+            openWindow(id: "main")
+        }
     }
 }

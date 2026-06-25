@@ -4,10 +4,12 @@ struct ContentView: View {
     @ObservedObject var store: ResetCreditsStore
 
     var body: some View {
-        NavigationSplitView {
+        HStack(spacing: 0) {
             AccountSidebarView(store: store)
-                .navigationSplitViewColumnWidth(min: 190, ideal: 230, max: 280)
-        } detail: {
+                .frame(width: CodexStyle.Size.sidebarWidth)
+
+            Divider()
+
             AccountDetailView(
                 detail: store.detail(),
                 cachedAccountCount: store.cachedSnapshots.count,
@@ -23,6 +25,7 @@ struct ContentView: View {
                     store.clearCachedSnapshots()
                 }
             )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }

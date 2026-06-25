@@ -17,13 +17,13 @@ https://github.com/jordan-edai/codex-reset-watcher
 Current release:
 
 ```text
-v0.3.1
+v0.3.2
 ```
 
 Latest tracked release state:
 
 ```text
-v0.3.1 active-account hotfix
+v0.3.2 menu window-focus hotfix
 ```
 
 ## What Is Shipped
@@ -54,12 +54,15 @@ v0.3.1 active-account hotfix
 - `v0.3.1`: fixed the active-account regression where otherwise-valid usage
   data could be rejected when the usage endpoint's account identifier differed
   from the local Codex Desktop auth-context account ID.
+- `v0.3.2`: fixed cached-snapshot menu rows creating duplicate main windows,
+  replaced the fragile native split-view shell with a fixed two-pane layout, and
+  stopped implying local cached records were linked/live accounts.
 
 ## Current GitHub State
 
 - Repo is public.
 - Repo description: `Local-first macOS menu bar app for Codex usage limits and reset credits.`
-- Latest release is `v0.3.1`.
+- Latest release is `v0.3.2`.
 - `v0.2.0` release asset cleanup was completed; the duplicate generic
   `Codex.Reset.Watcher.zip` was removed and the versioned zip was kept.
 - PR #1 shipped usage limits and reset nudges.
@@ -84,6 +87,14 @@ v0.3.1 active-account hotfix
 - Use the local Codex Desktop auth-context account ID as the snapshot key when
   it exists. Treat the usage response account ID as a fallback key only; it may
   be a different namespace and should not break the active account by itself.
+- Menu rows that open cached snapshot details must reuse/focus the registered
+  main window. `WindowGroup` is still used for launch behavior, so direct
+  repeated `openWindow(id: "main")` calls can recreate the duplicate-window bug.
+- The desktop account view uses a fixed two-pane sidebar/detail shell on
+  purpose. Avoid reintroducing `NavigationSplitView` unless its hidden-sidebar
+  behavior is manually tested in the packaged menu bar app.
+- User-facing copy should call non-active saved records `cached snapshots`, not
+  linked accounts or profiles. They are local last-seen records only.
 - Persisted snapshots must remain derived-only and must not include tokens, raw
   auth, raw API responses, full account IDs, user IDs, or reset credit IDs.
 - Use [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) as the future-maintainer guardrail

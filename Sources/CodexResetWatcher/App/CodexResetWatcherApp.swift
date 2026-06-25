@@ -5,6 +5,7 @@ struct CodexResetWatcherApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @AppStorage("menuBarMetric") private var menuBarMetricRawValue = MenuBarMetric.weekly.rawValue
     @StateObject private var store = ResetCreditsStore()
+    @StateObject private var mainWindowController = MainWindowController()
 
     private var menuBarMetric: MenuBarMetric {
         MenuBarMetric(rawValue: menuBarMetricRawValue) ?? .weekly
@@ -13,6 +14,11 @@ struct CodexResetWatcherApp: App {
     var body: some Scene {
         WindowGroup("Codex Reset Watcher", id: "main") {
             ContentView(store: store)
+                .background {
+                    MainWindowReader { window in
+                        mainWindowController.register(window)
+                    }
+                }
                 .frame(minWidth: 800, idealWidth: 860, minHeight: 560, idealHeight: 620)
                 .task {
                     store.start()
@@ -31,7 +37,11 @@ struct CodexResetWatcherApp: App {
         }
 
         MenuBarExtra {
-            MenuBarStatusView(store: store, menuBarMetricRawValue: $menuBarMetricRawValue)
+            MenuBarStatusView(
+                store: store,
+                mainWindowController: mainWindowController,
+                menuBarMetricRawValue: $menuBarMetricRawValue
+            )
                 .task {
                     store.start()
                 }

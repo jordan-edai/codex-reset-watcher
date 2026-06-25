@@ -10,9 +10,9 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Public GitHub repo: `https://github.com/jordan-edai/codex-reset-watcher`
 - Canonical local path: `/Users/everydayai/Documents/!Codex Projects/Rate Refresher Project`
 - Compatibility path: `/Users/everydayai/Documents/Rate Refresher Project`
-- Latest shipped release: `v0.3.1`
+- Latest shipped release: `v0.3.2`
 - Check `git log --oneline --decorate -5` for the current `main` commit; this
-  note tracks the repo state through the `v0.3.1` active-account hotfix release.
+  note tracks the repo state through the `v0.3.2` menu window-focus hotfix release.
 - App bundle version is set in `script/build_and_run.sh`.
 
 ## Product Decisions
@@ -59,6 +59,14 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
   The usage endpoint can report an account identifier from a different namespace;
   do not reject otherwise-valid active usage data solely because those strings
   differ.
+- Menu cached-snapshot rows should focus the existing main window and update the
+  shared account selection. Do not call `openWindow(id: "main")` directly from
+  those rows, because `WindowGroup` can create duplicate main windows.
+- The desktop window intentionally uses a fixed two-pane sidebar/detail shell,
+  not a native `NavigationSplitView`. The native split view's sidebar toggle can
+  hide the account list in this compact utility window.
+- User-facing copy should call non-active saved records `cached snapshots`, not
+  linked accounts or profiles. They are local last-seen records only.
 - Reset count should use server `available_count` when provided so malformed
   detail rows do not undercount banked resets.
 

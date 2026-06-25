@@ -8,11 +8,11 @@ Codex Reset Watcher uses a conservative snapshot model:
 
 - The active Codex account refreshes live from the current local Codex Desktop
   login.
-- Other accounts are cached last-seen snapshots only.
+- Non-active saved records are cached last-seen snapshots only.
 - The app never switches Codex accounts.
 - Refreshing another account requires signing into that account in Codex
   Desktop.
-- Cached accounts must be labeled as cached or stale, with the last refreshed
+- Cached snapshots must be labeled as cached or stale, with the last refreshed
   time visible.
 
 ## Account Labels
@@ -71,15 +71,15 @@ Menu bar dropdown:
 
 - Keep the active account at the top.
 - Keep the menu bar title focused on the active account only.
-- Show cached accounts in a compact `Other accounts` section.
-- Cached account rows open the main window detail; they do not change the menu
+- Show cached snapshots in a compact `Cached snapshots` section.
+- Cached snapshot rows open the main window detail; they do not change the menu
   bar title.
 
 Main window:
 
 - Use a left sidebar account list, not tabs.
 - Pin the active account first.
-- Group cached accounts under `Other accounts`.
+- Group cached snapshots under `Cached snapshots`.
 - Show the current detail layout for the selected account.
 - Provide `Forget` for cached accounts and `Clear cached` for all cached
   snapshots.

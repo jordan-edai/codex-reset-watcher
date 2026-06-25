@@ -64,7 +64,7 @@ Codex Reset Watcher does not switch accounts for you.
 
 After a successful refresh, the app saves a minimized local snapshot for that
 account. If you later sign into a different Codex account, the current account
-updates live and previously seen accounts appear under **Other accounts** as
+updates live and previously seen accounts appear under **Cached snapshots** as
 cached snapshots.
 
 Cached snapshots are last-seen records, not live dashboards. They are labeled

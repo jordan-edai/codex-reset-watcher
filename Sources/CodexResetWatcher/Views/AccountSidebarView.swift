@@ -25,7 +25,7 @@ struct AccountSidebarView: View {
 
                 let cached = store.sidebarRows.dropFirst()
                 if !cached.isEmpty {
-                    Section("Other accounts") {
+                    Section("Cached snapshots") {
                         ForEach(Array(cached)) { row in
                             sidebarRow(row)
                                 .tag(row.selection)

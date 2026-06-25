@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.2 - 2026-06-25
+
+- Fixes a menu-dropdown regression where clicking cached accounts could create
+  additional main windows instead of focusing the existing window.
+- Replaces the fragile desktop `NavigationSplitView` shell with a fixed two-pane
+  sidebar/detail layout so cached-snapshot navigation cannot hide the sidebar.
+- Renames the former `Other accounts` sections to `Cached snapshots` so local
+  last-seen records are not confused with linked/live Codex accounts.
+- Adds a small main-window presenter so menu actions reuse the registered main
+  window and only create a new one if no main window exists.
+
 ## 0.3.1 - 2026-06-25
 
 - Fixes a `v0.3.0` regression where the active account could be rejected with
