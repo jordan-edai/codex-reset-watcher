@@ -245,7 +245,7 @@ final class AccountSnapshotStoreTests: XCTestCase {
         XCTAssertTrue(store.errorMessages.joined(separator: " ").contains("Could not load"))
     }
 
-    func testConflictingUsageAccountIDDoesNotPersistMixedSnapshot() async throws {
+    func testUsageAccountIDConflictUsesAuthContextSnapshotKey() async throws {
         let harness = try StoreHarness()
         let store = ResetCreditsStore(
             client: harness.client(accountID: "acct_header", usageAccountID: "acct_usage"),
@@ -254,10 +254,13 @@ final class AccountSnapshotStoreTests: XCTestCase {
 
         await store.refresh()
 
-        XCTAssertEqual(store.snapshots.count, 0)
-        XCTAssertEqual(store.usageWindows.count, 0)
-        XCTAssertEqual(store.availableCount, 0)
-        XCTAssertTrue(store.errorMessages.joined(separator: " ").contains("different account"))
+        let snapshot = try XCTUnwrap(store.snapshots.first)
+        XCTAssertEqual(store.snapshots.count, 1)
+        XCTAssertEqual(snapshot.id, try harness.persistence.snapshotID(for: "acct_header"))
+        XCTAssertNotEqual(snapshot.id, try harness.persistence.snapshotID(for: "acct_usage"))
+        XCTAssertEqual(store.usageWindows.count, 2)
+        XCTAssertEqual(store.availableCount, 1)
+        XCTAssertEqual(store.errorMessages, [])
     }
 
     func testSameEmailDifferentAccountIDsRemainSeparateSnapshots() async throws {

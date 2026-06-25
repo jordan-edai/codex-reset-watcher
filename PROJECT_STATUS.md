@@ -17,13 +17,13 @@ https://github.com/jordan-edai/codex-reset-watcher
 Current release:
 
 ```text
-v0.3.0
+v0.3.1
 ```
 
 Latest tracked release state:
 
 ```text
-v0.3.0 multi-account snapshots
+v0.3.1 active-account hotfix
 ```
 
 ## What Is Shipped
@@ -51,12 +51,15 @@ v0.3.0 multi-account snapshots
 - `v0.3.0`: added safe local multi-account snapshots, a desktop account
   sidebar, compact cached-account rows in the menu dropdown, stale snapshot
   labels, and one-auth-context refresh handling to avoid account bleed.
+- `v0.3.1`: fixed the active-account regression where otherwise-valid usage
+  data could be rejected when the usage endpoint's account identifier differed
+  from the local Codex Desktop auth-context account ID.
 
 ## Current GitHub State
 
 - Repo is public.
 - Repo description: `Local-first macOS menu bar app for Codex usage limits and reset credits.`
-- Latest release is `v0.3.0`.
+- Latest release is `v0.3.1`.
 - `v0.2.0` release asset cleanup was completed; the duplicate generic
   `Codex.Reset.Watcher.zip` was removed and the versioned zip was kept.
 - PR #1 shipped usage limits and reset nudges.
@@ -78,6 +81,9 @@ v0.3.0 multi-account snapshots
   before adding one-off colors, radii, spacing, or panel styles.
 - Multi-account support is snapshot-based. The active Codex account refreshes
   live; other accounts are cached last-seen records only.
+- Use the local Codex Desktop auth-context account ID as the snapshot key when
+  it exists. Treat the usage response account ID as a fallback key only; it may
+  be a different namespace and should not break the active account by itself.
 - Persisted snapshots must remain derived-only and must not include tokens, raw
   auth, raw API responses, full account IDs, user IDs, or reset credit IDs.
 - Use [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) as the future-maintainer guardrail

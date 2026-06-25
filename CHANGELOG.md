@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.1 - 2026-06-25
+
+- Fixes a `v0.3.0` regression where the active account could be rejected with
+  `Codex returned a different account than the active login` when the usage
+  endpoint reported an account identifier in a different namespace than the
+  local Codex Desktop auth context.
+- Uses the Codex Desktop auth context as the active snapshot key when available,
+  and falls back to the usage response account ID only when auth has no stable
+  account ID.
+- Adds a regression test that keeps active usage meters visible when the usage
+  endpoint account ID differs from the auth context account ID.
+
 ## 0.3.0 - 2026-06-25
 
 - Adds local multi-account snapshots: the active Codex account refreshes live,

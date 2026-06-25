@@ -4,7 +4,6 @@ import Foundation
 final class ResetCreditsStore: ObservableObject {
     private struct SnapshotIDResolution {
         let id: AccountSnapshotID?
-        let hasConflict: Bool
     }
 
     private enum ActiveAccountChange {
@@ -347,13 +346,6 @@ final class ResetCreditsStore: ObservableObject {
     ) {
         let usageResponse = try? usageResult.get()
         let resolution = snapshotIDResolution(for: context, usageResponse: usageResponse)
-        if resolution.hasConflict {
-            clearActiveLiveData(context: context, snapshotID: snapshotID(forAccountID: context.accountId))
-            usageErrorMessage = "Codex returned a different account than the active login. Refresh again to load the active account cleanly."
-            creditsErrorMessage = nil
-            lastChecked = refreshedAt
-            return
-        }
 
         let snapshotID = resolution.id
         activeSnapshotID = snapshotID
@@ -496,16 +488,12 @@ final class ResetCreditsStore: ObservableObject {
 
     private func snapshotIDResolution(for context: CodexAuthContext, usageResponse: CodexUsageResponse?) -> SnapshotIDResolution {
         let contextAccountID = normalizedAccountID(context.accountId)
-        let usageAccountID = normalizedAccountID(usageResponse?.accountId)
-
-        if let contextAccountID, let usageAccountID, contextAccountID != usageAccountID {
-            return SnapshotIDResolution(id: nil, hasConflict: true)
+        if let contextAccountID {
+            return SnapshotIDResolution(id: snapshotID(forAccountID: contextAccountID))
         }
 
-        return SnapshotIDResolution(
-            id: snapshotID(forAccountID: usageAccountID ?? contextAccountID),
-            hasConflict: false
-        )
+        let usageAccountID = normalizedAccountID(usageResponse?.accountId)
+        return SnapshotIDResolution(id: snapshotID(forAccountID: usageAccountID))
     }
 
     private func snapshotID(forAccountID accountID: String?) -> AccountSnapshotID? {
@@ -616,7 +604,7 @@ final class ResetCreditsStore: ObservableObject {
 
     private func identity(from response: CodexUsageResponse, context: CodexAuthContext) -> CodexAccountIdentity {
         CodexAccountIdentity(
-            accountId: response.accountId ?? context.accountId,
+            accountId: context.accountId ?? response.accountId,
             email: response.email ?? context.identity.email,
             name: context.identity.name
         )

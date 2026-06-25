@@ -10,9 +10,9 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Public GitHub repo: `https://github.com/jordan-edai/codex-reset-watcher`
 - Canonical local path: `/Users/everydayai/Documents/!Codex Projects/Rate Refresher Project`
 - Compatibility path: `/Users/everydayai/Documents/Rate Refresher Project`
-- Latest shipped release: `v0.3.0`
+- Latest shipped release: `v0.3.1`
 - Check `git log --oneline --decorate -5` for the current `main` commit; this
-  note tracks the repo state through the `v0.3.0` multi-account snapshot release.
+  note tracks the repo state through the `v0.3.1` active-account hotfix release.
 - App bundle version is set in `script/build_and_run.sh`.
 
 ## Product Decisions
@@ -55,6 +55,10 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Account snapshot keys are salted hashes stored under Application Support.
 - Refreshes must use one loaded auth context for identity, usage, and reset
   credits so account switches cannot mix data across accounts.
+- When the auth context has a stable account ID, use that as the snapshot key.
+  The usage endpoint can report an account identifier from a different namespace;
+  do not reject otherwise-valid active usage data solely because those strings
+  differ.
 - Reset count should use server `available_count` when provided so malformed
   detail rows do not undercount banked resets.
 
