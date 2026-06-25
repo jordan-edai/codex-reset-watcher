@@ -10,9 +10,9 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Public GitHub repo: `https://github.com/jordan-edai/codex-reset-watcher`
 - Canonical local path: `/Users/everydayai/Documents/!Codex Projects/Rate Refresher Project`
 - Compatibility path: `/Users/everydayai/Documents/Rate Refresher Project`
-- Latest shipped release: `v0.2.3`
+- Latest shipped release: `v0.2.4`
 - Check `git log --oneline --decorate -5` for the current `main` commit; this
-  note tracks the repo state through the `v0.2.3` display-toggle release.
+  note tracks the repo state through the `v0.2.4` menu-label release.
 - App bundle version is set in `script/build_and_run.sh`.
 
 ## Product Decisions
@@ -34,6 +34,13 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
   itself is correct.
 - The dropdown includes a persisted `Menu bar` segmented control. `Week` shows
   weekly remaining usage, and `5h` shows the 5-hour remaining usage.
+- Reset-credit rows in the dropdown should always label the date, for example
+  `Reset 1 expires:`. The 5-hour and weekly usage rows should also label when
+  those windows reset.
+- The active account label can come from the usage response email, local
+  `id_token` email/name, or a short account-id fallback. Do not store identity
+  snapshots in `v0.2.x`; multi-account snapshots belong in a privacy-reviewed
+  `v0.3.0` feature.
 - Reset count should use server `available_count` when provided so malformed
   detail rows do not undercount banked resets.
 

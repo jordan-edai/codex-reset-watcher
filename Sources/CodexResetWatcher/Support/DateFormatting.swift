@@ -34,12 +34,32 @@ enum DateFormatting {
     }
 
     static func compact(_ value: String?) -> String {
-        guard let date = parse(value) else {
+        compact(parse(value))
+    }
+
+    static func compact(_ date: Date?) -> String {
+        guard let date else {
             return "-"
         }
 
         let formatter = DateFormatter()
         formatter.setLocalizedDateFormatFromTemplate("MMM d, h:mm a")
+        formatter.timeZone = .current
+        return formatter.string(from: date)
+    }
+
+    static func weekdayCompact(_ value: String?) -> String {
+        weekdayCompact(parse(value))
+    }
+
+    static func weekdayCompact(_ date: Date?) -> String {
+        guard let date else {
+            return "-"
+        }
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "EEE, MMM d 'at' h:mm a"
         formatter.timeZone = .current
         return formatter.string(from: date)
     }

@@ -52,6 +52,22 @@ final class DecodeTests: XCTestCase {
         XCTAssertEqual(seconds.resetDate, milliseconds.resetDate)
     }
 
+    @MainActor
+    func testWeekdayCompactIncludesDayOfWeek() {
+        var components = DateComponents()
+        components.calendar = Calendar(identifier: .gregorian)
+        components.timeZone = .current
+        components.year = 2026
+        components.month = 7
+        components.day = 17
+        components.hour = 19
+        components.minute = 38
+
+        let value = DateFormatting.weekdayCompact(components.date)
+
+        XCTAssertTrue(value.hasPrefix("Fri, Jul 17 at "))
+    }
+
     func testBase64URLDecodesUnpaddedPayload() {
         let decoded = Data(base64URLString: "eyJhY2NvdW50IjoiYWNjdF8xMjMifQ")
 
@@ -171,6 +187,7 @@ final class CodexAPIClientTests: XCTestCase {
             case "/backend-api/wham/usage":
                 let body = """
                 {
+                  "email": "builder@example.com",
                   "plan_type": "pro",
                   "rate_limit": {
                     "primary_window": {
@@ -199,6 +216,7 @@ final class CodexAPIClientTests: XCTestCase {
         XCTAssertEqual(store.menuBarTitle, "63% | week")
         XCTAssertEqual(store.menuBarTitle(for: .weekly), "63% | week")
         XCTAssertEqual(store.menuBarTitle(for: .fiveHour), "29% | 5h")
+        XCTAssertEqual(store.accountDisplayLabel, "builder@example.com")
     }
 
     private func makeClient(
