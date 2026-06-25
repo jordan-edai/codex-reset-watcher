@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-06-24
+Last updated: 2026-06-25
 
 ## Summary
 
@@ -17,13 +17,13 @@ https://github.com/jordan-edai/codex-reset-watcher
 Current release:
 
 ```text
-v0.2.6
+v0.3.0
 ```
 
 Latest tracked release state:
 
 ```text
-v0.2.6 unified menu and desktop visual system
+v0.3.0 multi-account snapshots
 ```
 
 ## What Is Shipped
@@ -48,12 +48,15 @@ v0.2.6 unified menu and desktop visual system
 - `v0.2.6`: unified the menu popover and desktop window around the same header
   artwork, green operational accent, rounded typography, and panel/card surface
   treatment.
+- `v0.3.0`: added safe local multi-account snapshots, a desktop account
+  sidebar, compact cached-account rows in the menu dropdown, stale snapshot
+  labels, and one-auth-context refresh handling to avoid account bleed.
 
 ## Current GitHub State
 
 - Repo is public.
 - Repo description: `Local-first macOS menu bar app for Codex usage limits and reset credits.`
-- Latest release is `v0.2.6`.
+- Latest release is `v0.3.0`.
 - `v0.2.0` release asset cleanup was completed; the duplicate generic
   `Codex.Reset.Watcher.zip` was removed and the versioned zip was kept.
 - PR #1 shipped usage limits and reset nudges.
@@ -73,6 +76,10 @@ v0.2.6 unified menu and desktop visual system
   broader Codex Cockpit.
 - Keep visual updates on the shared `CodexPalette` and `CodexStyle` tokens
   before adding one-off colors, radii, spacing, or panel styles.
+- Multi-account support is snapshot-based. The active Codex account refreshes
+  live; other accounts are cached last-seen records only.
+- Persisted snapshots must remain derived-only and must not include tokens, raw
+  auth, raw API responses, full account IDs, user IDs, or reset credit IDs.
 - Use [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) as the future-maintainer guardrail
   for menu and desktop visual changes.
 - Use generated visual assets only when they are checked in and documented as
@@ -96,7 +103,17 @@ GET https://chatgpt.com/backend-api/wham/rate-limit-reset-credits
 ```
 
 Headers are built from the saved Codex Desktop auth token and, when available,
-the active account id.
+the active account id. Each refresh loads one auth context and uses it for both
+usage and reset-credit calls.
+
+The app also stores minimized multi-account snapshots at:
+
+```text
+~/Library/Application Support/Codex Reset Watcher/account-snapshots.json
+```
+
+The snapshot key is a salted hash. The local salt is stored next to the snapshot
+file under Application Support.
 
 ## Known Boundaries
 
@@ -132,12 +149,10 @@ unless the user explicitly asks.
 
 ## Next Sensible Improvements
 
-- Build the conservative multi-account snapshot system described in
-  [MULTI_ACCOUNT_PLAN.md](MULTI_ACCOUNT_PLAN.md) as a privacy-reviewed
-  `v0.3.0` feature.
 - Consider moving from direct internal `/wham` calls toward Codex app-server
   account usage/rate-limit APIs if those become stable enough for this use.
 - Add notarized release packaging if public adoption grows.
 - Add a small in-app version/about view.
 - Add a clearer error state when Codex auth exists but the internal endpoint
   shape changes.
+- Add optional user nicknames for cached accounts.

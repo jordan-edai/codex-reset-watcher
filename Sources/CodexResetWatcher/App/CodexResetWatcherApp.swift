@@ -13,7 +13,7 @@ struct CodexResetWatcherApp: App {
     var body: some Scene {
         WindowGroup("Codex Reset Watcher", id: "main") {
             ContentView(store: store)
-                .frame(minWidth: 620, idealWidth: 700, minHeight: 540, idealHeight: 590)
+                .frame(minWidth: 800, idealWidth: 860, minHeight: 560, idealHeight: 620)
                 .task {
                     store.start()
                 }

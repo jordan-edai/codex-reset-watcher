@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct CreditRowView: View {
-    let credit: ResetCredit
+    let credit: ResetCreditDisplay
     var ordinal: Int?
 
     var body: some View {
@@ -52,7 +52,7 @@ struct CreditRowView: View {
 
     private var urgency: ResetExpiryUrgency {
         ResetExpiryUrgency.make(
-            expiresAt: DateFormatting.parse(credit.expiresAt),
+            expiresAt: credit.expiresAt,
             isAvailable: credit.isAvailable
         )
     }

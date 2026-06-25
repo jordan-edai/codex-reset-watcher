@@ -2,6 +2,16 @@ import Foundation
 
 @MainActor
 final class ResetCreditsStore: ObservableObject {
+    private struct SnapshotIDResolution {
+        let id: AccountSnapshotID?
+        let hasConflict: Bool
+    }
+
+    private enum ActiveAccountChange {
+        case unchanged
+        case changed(CodexAuthContext?)
+    }
+
     @Published private(set) var credits: [ResetCredit] = []
     @Published private(set) var availableCount = 0
     @Published private(set) var usage: CodexUsageResponse?
@@ -10,16 +20,43 @@ final class ResetCreditsStore: ObservableObject {
     @Published private(set) var creditsErrorMessage: String?
     @Published private(set) var usageErrorMessage: String?
     @Published private(set) var accountIdentity = CodexAccountIdentity(accountId: nil, email: nil, name: nil)
+    @Published private(set) var activeSnapshotID: AccountSnapshotID?
+    @Published private(set) var snapshots: [CodexAccountSnapshot]
+    @Published var selectedAccount: AccountSelection = .active
 
     private let client: CodexAPIClient
+    private let snapshotPersistence: AccountSnapshotPersistence
     private var refreshTask: Task<Void, Never>?
 
-    init(client: CodexAPIClient = CodexAPIClient()) {
+    init(
+        client: CodexAPIClient = CodexAPIClient(),
+        snapshotPersistence: AccountSnapshotPersistence = AccountSnapshotPersistence()
+    ) {
         self.client = client
+        self.snapshotPersistence = snapshotPersistence
+        snapshots = snapshotPersistence.load()
     }
 
     var availableCredits: [ResetCredit] {
         credits.filter(\.isAvailable)
+    }
+
+    var creditDisplays: [ResetCreditDisplay] {
+        credits.enumerated().map { index, credit in
+            credit.displayModel(fallbackID: "active-reset-\(index)")
+        }
+    }
+
+    var availableCreditDisplays: [ResetCreditDisplay] {
+        availableCredits.enumerated().map { index, credit in
+            credit.displayModel(fallbackID: "active-available-reset-\(index)")
+        }
+    }
+
+    var cachedSnapshots: [CodexAccountSnapshot] {
+        snapshots
+            .filter { $0.id != activeSnapshotID }
+            .sorted { $0.lastChecked > $1.lastChecked }
     }
 
     var menuBarTitle: String {
@@ -83,25 +120,14 @@ final class ResetCreditsStore: ObservableObject {
     }
 
     var usageWindows: [UsageLimitDisplay] {
-        guard let rateLimit = usage?.rateLimit else {
-            return []
-        }
-
-        var windows: [UsageLimitDisplay] = []
-        if let primary = rateLimit.primaryWindow {
-            windows.append(display(for: primary, fallbackID: "primary", limitReached: rateLimit.limitReached == true))
-        }
-        if let secondary = rateLimit.secondaryWindow {
-            windows.append(display(for: secondary, fallbackID: "secondary", limitReached: rateLimit.limitReached == true))
-        }
-        return windows
+        displays(for: usage)
     }
 
     var nudge: UsageNudge {
         UsageNudge.make(
             windows: usageWindows,
             resetCount: availableCount,
-            resetUrgencies: resetUrgencies
+            resetUrgencies: resetUrgencies(for: availableCreditDisplays)
         )
     }
 
@@ -110,26 +136,94 @@ final class ResetCreditsStore: ObservableObject {
     }
 
     var planLabel: String {
-        guard let planType = usage?.planType, !planType.isEmpty else {
-            return "Codex"
-        }
-        return planType
-            .split(separator: "_")
-            .map { $0.capitalized }
-            .joined(separator: " ")
+        planLabel(for: usage)
     }
 
     var accountDisplayLabel: String {
         accountIdentity.displayLabel
     }
 
-    private var resetUrgencies: [ResetExpiryUrgency] {
-        availableCredits.map { credit in
-            ResetExpiryUrgency.make(
-                expiresAt: DateFormatting.parse(credit.expiresAt),
-                isAvailable: credit.isAvailable
+    var sidebarRows: [AccountSidebarRow] {
+        var rows = [
+            AccountSidebarRow(
+                selection: .active,
+                label: accountDisplayLabel,
+                detail: activeSidebarDetail,
+                systemImage: "person.crop.circle",
+                isStale: false
             )
+        ]
+
+        rows.append(contentsOf: cachedSnapshots.map { snapshot in
+            let stale = snapshot.isStale()
+            return AccountSidebarRow(
+                selection: .cached(snapshot.id),
+                label: snapshot.effectiveLabel,
+                detail: stale ? "Stale snapshot" : "Cached \(DateFormatting.timeOnly(snapshot.lastChecked))",
+                systemImage: stale ? "clock.badge.exclamationmark" : "clock.arrow.circlepath",
+                isStale: stale
+            )
+        })
+
+        return rows
+    }
+
+    private var activeSidebarDetail: String {
+        if isRefreshing {
+            return "Refreshing active account..."
         }
+        if usage == nil, credits.isEmpty, !errorMessages.isEmpty {
+            return "No active Codex login"
+        }
+        return "Active now"
+    }
+
+    func detail(for selection: AccountSelection? = nil) -> AccountDetailState {
+        let selection = selection ?? selectedAccount
+        switch selection {
+        case .active:
+            return activeDetail()
+        case let .cached(id):
+            guard let snapshot = cachedSnapshots.first(where: { $0.id == id }) else {
+                return activeDetail()
+            }
+            return cachedDetail(snapshot)
+        }
+    }
+
+    func select(_ selection: AccountSelection) {
+        switch selection {
+        case .active:
+            selectedAccount = .active
+        case let .cached(id):
+            selectedAccount = cachedSnapshots.contains(where: { $0.id == id }) ? selection : .active
+        }
+    }
+
+    func selectCachedAccount(_ id: AccountSnapshotID) {
+        select(.cached(id))
+    }
+
+    func forgetSnapshot(id: AccountSnapshotID) {
+        do {
+            snapshots = try snapshotPersistence.delete(id: id, from: snapshots)
+        } catch {
+            usageErrorMessage = append(message: "Could not forget cached account.", to: usageErrorMessage)
+        }
+        if selectedAccount == .cached(id) {
+            selectedAccount = .active
+        }
+    }
+
+    func clearCachedSnapshots() {
+        let activeOnly = snapshots.filter { $0.id == activeSnapshotID }
+        do {
+            try snapshotPersistence.save(activeOnly)
+            snapshots = activeOnly
+        } catch {
+            usageErrorMessage = append(message: "Could not clear cached accounts.", to: usageErrorMessage)
+        }
+        selectedAccount = .active
     }
 
     func start() {
@@ -159,21 +253,117 @@ final class ResetCreditsStore: ObservableObject {
             return
         }
 
-        if let identity = try? client.loadAccountIdentity() {
-            accountIdentity = identity
+        let context: CodexAuthContext
+        do {
+            context = try client.loadAuthContext()
+        } catch {
+            applyMissingAuth(error)
+            return
         }
+
+        prepareForActiveContext(context)
 
         isRefreshing = true
         defer {
             isRefreshing = false
         }
 
-        do {
-            let response = try await fetchResetCreditsResult().get()
+        let creditsResult = await fetchResetCreditsResult(context: context)
+        let usageResult = await fetchUsageResult(context: context)
+        let refreshedAt = Date()
+
+        if case let .changed(latestContext) = activeAccountChange(from: context) {
+            if let latestContext {
+                clearActiveLiveData(context: latestContext, snapshotID: snapshotID(forAccountID: latestContext.accountId))
+            } else {
+                clearActiveLiveData(
+                    context: CodexAuthContext(
+                        accessToken: "",
+                        accountId: nil,
+                        identity: CodexAccountIdentity(accountId: nil, email: nil, name: nil)
+                    ),
+                    snapshotID: nil
+                )
+            }
+            usageErrorMessage = "Codex account changed during refresh. Refresh again to load the active account cleanly."
+            creditsErrorMessage = nil
+            lastChecked = refreshedAt
+            return
+        }
+
+        applyRefreshResults(
+            context: context,
+            creditsResult: creditsResult,
+            usageResult: usageResult,
+            refreshedAt: refreshedAt
+        )
+    }
+
+    private func applyMissingAuth(_ error: Error) {
+        usage = nil
+        credits = []
+        availableCount = 0
+        activeSnapshotID = nil
+        accountIdentity = CodexAccountIdentity(accountId: nil, email: nil, name: nil)
+        usageErrorMessage = refreshErrorMessage(area: "active account", error: error, hasPriorData: false)
+        creditsErrorMessage = nil
+        lastChecked = Date()
+        selectedAccount = selectedAccount == .active ? .active : selectedAccount
+    }
+
+    private func prepareForActiveContext(_ context: CodexAuthContext) {
+        let contextSnapshotID = snapshotID(forAccountID: context.accountId)
+        let shouldClear: Bool
+        if activeSnapshotID != contextSnapshotID {
+            shouldClear = true
+        } else if contextSnapshotID == nil, usage != nil || !credits.isEmpty {
+            shouldClear = true
+        } else {
+            shouldClear = false
+        }
+
+        guard shouldClear else {
+            return
+        }
+
+        clearActiveLiveData(context: context, snapshotID: contextSnapshotID)
+        usageErrorMessage = nil
+        creditsErrorMessage = nil
+    }
+
+    private func clearActiveLiveData(context: CodexAuthContext, snapshotID: AccountSnapshotID?) {
+        usage = nil
+        credits = []
+        availableCount = 0
+        activeSnapshotID = snapshotID
+        accountIdentity = context.identity
+    }
+
+    private func applyRefreshResults(
+        context: CodexAuthContext,
+        creditsResult: Result<ResetCreditsResponse, Error>,
+        usageResult: Result<CodexUsageResponse, Error>,
+        refreshedAt: Date
+    ) {
+        let usageResponse = try? usageResult.get()
+        let resolution = snapshotIDResolution(for: context, usageResponse: usageResponse)
+        if resolution.hasConflict {
+            clearActiveLiveData(context: context, snapshotID: snapshotID(forAccountID: context.accountId))
+            usageErrorMessage = "Codex returned a different account than the active login. Refresh again to load the active account cleanly."
+            creditsErrorMessage = nil
+            lastChecked = refreshedAt
+            return
+        }
+
+        let snapshotID = resolution.id
+        activeSnapshotID = snapshotID
+
+        switch creditsResult {
+        case let .success(response):
             credits = response.credits.sorted(by: sortByExpiry)
             availableCount = response.availableCount
             creditsErrorMessage = nil
-        } catch {
+        case let .failure(error):
             creditsErrorMessage = refreshErrorMessage(
                 area: "reset stash",
                 error: error,
@@ -181,25 +371,264 @@ final class ResetCreditsStore: ObservableObject {
             )
         }
 
-        do {
-            let response = try await fetchUsageResult().get()
+        switch usageResult {
+        case let .success(response):
             usage = response
-            accountIdentity = mergedIdentity(with: response)
+            accountIdentity = identity(from: response, context: context)
             if creditsErrorMessage != nil,
                credits.isEmpty,
                let fallbackCount = usage?.rateLimitResetCredits?.availableCount {
                 availableCount = fallbackCount
             }
             usageErrorMessage = nil
-        } catch {
+        case let .failure(error):
             usageErrorMessage = refreshErrorMessage(
                 area: "usage meters",
                 error: error,
                 hasPriorData: usage != nil
             )
+            accountIdentity = context.identity
         }
 
-        lastChecked = Date()
+        lastChecked = refreshedAt
+        persistSnapshotIfPossible(
+            id: snapshotID,
+            context: context,
+            creditsResult: creditsResult,
+            usageResult: usageResult,
+            refreshedAt: refreshedAt
+        )
+    }
+
+    private func persistSnapshotIfPossible(
+        id: AccountSnapshotID?,
+        context: CodexAuthContext,
+        creditsResult: Result<ResetCreditsResponse, Error>,
+        usageResult: Result<CodexUsageResponse, Error>,
+        refreshedAt: Date
+    ) {
+        guard let id else {
+            return
+        }
+
+        let existing = snapshots.first(where: { $0.id == id })
+        let creditsResponse = try? creditsResult.get()
+        let usageResponse = try? usageResult.get()
+        let hasAnySuccess = creditsResponse != nil || usageResponse != nil
+
+        guard hasAnySuccess || existing != nil else {
+            return
+        }
+
+        var errorCodes: [AccountSnapshotErrorCode] = []
+        if case let .failure(error) = creditsResult {
+            errorCodes.append(.resetCreditsFailed)
+            errorCodes.append(snapshotErrorCode(for: error))
+        }
+        if case let .failure(error) = usageResult {
+            errorCodes.append(.usageFailed)
+            errorCodes.append(snapshotErrorCode(for: error))
+        }
+
+        let next = makeSnapshot(
+            id: id,
+            context: context,
+            usageResponse: usageResponse,
+            creditsResponse: creditsResponse,
+            existing: existing,
+            errors: Array(Set(errorCodes)).sorted { $0.rawValue < $1.rawValue },
+            refreshedAt: refreshedAt,
+            hasAnySuccess: hasAnySuccess
+        )
+
+        do {
+            snapshots = try snapshotPersistence.upsert(next, into: snapshots)
+        } catch {
+            usageErrorMessage = append(message: "Could not save account snapshot.", to: usageErrorMessage)
+        }
+    }
+
+    private func makeSnapshot(
+        id: AccountSnapshotID,
+        context: CodexAuthContext,
+        usageResponse: CodexUsageResponse?,
+        creditsResponse: ResetCreditsResponse?,
+        existing: CodexAccountSnapshot?,
+        errors: [AccountSnapshotErrorCode],
+        refreshedAt: Date,
+        hasAnySuccess: Bool
+    ) -> CodexAccountSnapshot {
+        let snapshotIdentity = usageResponse.map { identity(from: $0, context: context) } ?? context.identity
+        let windows = usageResponse.map { displays(for: $0).map { AccountUsageWindowSnapshot(display: $0, capturedAt: refreshedAt) } }
+            ?? existing?.usageWindows
+            ?? []
+        let resetExpiries = creditsResponse.map { response in
+            response.credits
+                .filter(\.isAvailable)
+                .compactMap { DateFormatting.parse($0.expiresAt) }
+                .sorted()
+        } ?? existing?.resetExpiries ?? []
+        let resetCount = creditsResponse?.availableCount ?? existing?.resetCount ?? 0
+
+        return CodexAccountSnapshot(
+            id: id,
+            nickname: existing?.nickname,
+            displayLabel: snapshotIdentity.displayLabel,
+            planLabel: usageResponse.map { planLabel(for: $0) } ?? existing?.planLabel ?? "Codex",
+            lastChecked: hasAnySuccess ? refreshedAt : existing?.lastChecked ?? refreshedAt,
+            usageWindows: windows,
+            resetCount: resetCount,
+            resetExpiries: resetExpiries,
+            status: CodexAccountSnapshot.status(errors: errors, hasAnySuccess: hasAnySuccess),
+            errors: errors
+        )
+    }
+
+    private func activeAccountChange(from context: CodexAuthContext) -> ActiveAccountChange {
+        guard let latest = try? client.loadAuthContext() else {
+            return .changed(nil)
+        }
+        if latest.accessToken != context.accessToken || latest.accountId != context.accountId {
+            return .changed(latest)
+        }
+        return .unchanged
+    }
+
+    private func snapshotIDResolution(for context: CodexAuthContext, usageResponse: CodexUsageResponse?) -> SnapshotIDResolution {
+        let contextAccountID = normalizedAccountID(context.accountId)
+        let usageAccountID = normalizedAccountID(usageResponse?.accountId)
+
+        if let contextAccountID, let usageAccountID, contextAccountID != usageAccountID {
+            return SnapshotIDResolution(id: nil, hasConflict: true)
+        }
+
+        return SnapshotIDResolution(
+            id: snapshotID(forAccountID: usageAccountID ?? contextAccountID),
+            hasConflict: false
+        )
+    }
+
+    private func snapshotID(forAccountID accountID: String?) -> AccountSnapshotID? {
+        guard let accountID = normalizedAccountID(accountID) else {
+            return nil
+        }
+        return try? snapshotPersistence.snapshotID(for: accountID)
+    }
+
+    private func normalizedAccountID(_ accountID: String?) -> String? {
+        guard let accountID = accountID?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !accountID.isEmpty
+        else {
+            return nil
+        }
+        return accountID
+    }
+
+    private func activeDetail() -> AccountDetailState {
+        AccountDetailState(
+            selection: .active,
+            snapshotID: activeSnapshotID,
+            accountLabel: accountDisplayLabel,
+            planLabel: planLabel,
+            statusTitle: "Active account",
+            statusDetail: activeSidebarDetail,
+            lastChecked: lastChecked,
+            availableCount: availableCount,
+            credits: creditDisplays,
+            usageWindows: usageWindows,
+            nudge: nudge,
+            errorMessages: errorMessages,
+            isActive: true,
+            isCached: false,
+            isStale: false,
+            isRefreshing: isRefreshing,
+            canRefresh: true,
+            canForget: false
+        )
+    }
+
+    private func cachedDetail(_ snapshot: CodexAccountSnapshot) -> AccountDetailState {
+        let stale = snapshot.isStale()
+        let windows = snapshot.displays()
+        let credits = snapshot.creditDisplays()
+        let nudge: UsageNudge
+        if stale {
+            nudge = UsageNudge(
+                tier: .unavailable,
+                title: "Stale snapshot",
+                message: "These numbers are from the last time this account was active. Sign into this Codex account to refresh it.",
+                detail: "Cached"
+            )
+        } else {
+            nudge = UsageNudge.make(
+                windows: windows,
+                resetCount: snapshot.resetCount,
+                resetUrgencies: resetUrgencies(for: credits)
+            )
+        }
+
+        return AccountDetailState(
+            selection: .cached(snapshot.id),
+            snapshotID: snapshot.id,
+            accountLabel: snapshot.effectiveLabel,
+            planLabel: snapshot.planLabel,
+            statusTitle: stale ? "Stale snapshot" : "Cached snapshot",
+            statusDetail: "Last refreshed \(DateFormatting.weekdayCompact(snapshot.lastChecked))",
+            lastChecked: snapshot.lastChecked,
+            availableCount: snapshot.resetCount,
+            credits: credits,
+            usageWindows: windows,
+            nudge: nudge,
+            errorMessages: snapshot.errors.map { errorMessage(for: $0) },
+            isActive: false,
+            isCached: true,
+            isStale: stale,
+            isRefreshing: false,
+            canRefresh: false,
+            canForget: true
+        )
+    }
+
+    private func displays(for usage: CodexUsageResponse?) -> [UsageLimitDisplay] {
+        guard let rateLimit = usage?.rateLimit else {
+            return []
+        }
+
+        var windows: [UsageLimitDisplay] = []
+        if let primary = rateLimit.primaryWindow {
+            windows.append(display(for: primary, fallbackID: "primary", limitReached: rateLimit.limitReached == true))
+        }
+        if let secondary = rateLimit.secondaryWindow {
+            windows.append(display(for: secondary, fallbackID: "secondary", limitReached: rateLimit.limitReached == true))
+        }
+        return windows
+    }
+
+    private func planLabel(for usage: CodexUsageResponse?) -> String {
+        guard let planType = usage?.planType, !planType.isEmpty else {
+            return "Codex"
+        }
+        return planType
+            .split(separator: "_")
+            .map { $0.capitalized }
+            .joined(separator: " ")
+    }
+
+    private func identity(from response: CodexUsageResponse, context: CodexAuthContext) -> CodexAccountIdentity {
+        CodexAccountIdentity(
+            accountId: response.accountId ?? context.accountId,
+            email: response.email ?? context.identity.email,
+            name: context.identity.name
+        )
+    }
+
+    private func resetUrgencies(for credits: [ResetCreditDisplay]) -> [ResetExpiryUrgency] {
+        credits.map { credit in
+            ResetExpiryUrgency.make(
+                expiresAt: credit.expiresAt,
+                isAvailable: credit.isAvailable
+            )
+        }
     }
 
     private func sortByExpiry(_ lhs: ResetCredit, _ rhs: ResetCredit) -> Bool {
@@ -218,17 +647,17 @@ final class ResetCreditsStore: ObservableObject {
         }
     }
 
-    private func fetchResetCreditsResult() async -> Result<ResetCreditsResponse, Error> {
+    private func fetchResetCreditsResult(context: CodexAuthContext) async -> Result<ResetCreditsResponse, Error> {
         do {
-            return .success(try await client.fetchResetCredits())
+            return .success(try await client.fetchResetCredits(context: context))
         } catch {
             return .failure(error)
         }
     }
 
-    private func fetchUsageResult() async -> Result<CodexUsageResponse, Error> {
+    private func fetchUsageResult(context: CodexAuthContext) async -> Result<CodexUsageResponse, Error> {
         do {
-            return .success(try await client.fetchUsage())
+            return .success(try await client.fetchUsage(context: context))
         } catch {
             return .failure(error)
         }
@@ -239,12 +668,70 @@ final class ResetCreditsStore: ObservableObject {
         return "\(prefix) \(error.localizedDescription)"
     }
 
-    private func mergedIdentity(with response: CodexUsageResponse) -> CodexAccountIdentity {
-        CodexAccountIdentity(
-            accountId: response.accountId ?? accountIdentity.accountId,
-            email: response.email ?? accountIdentity.email,
-            name: accountIdentity.name
-        )
+    private func snapshotErrorCode(for error: Error) -> AccountSnapshotErrorCode {
+        if let error = error as? CodexAPIError {
+            switch error {
+            case .missingAuth:
+                return .missingAuth
+            case .invalidAuth:
+                return .invalidAuth
+            case .invalidResponse:
+                return .invalidResponse
+            case .emptyResponse:
+                return .emptyResponse
+            case .unexpectedContentType:
+                return .unexpectedContentType
+            case .rateLimited:
+                return .rateLimited
+            case let .httpStatus(status):
+                if status == 401 {
+                    return .unauthorized
+                }
+                if status == 403 {
+                    return .forbidden
+                }
+                return .httpStatus
+            }
+        }
+        return .decoding
+    }
+
+    private func errorMessage(for code: AccountSnapshotErrorCode) -> String {
+        switch code {
+        case .missingAuth:
+            return "Codex login was missing during the last refresh."
+        case .invalidAuth:
+            return "Codex login could not be read during the last refresh."
+        case .invalidResponse:
+            return "Codex returned an invalid response during the last refresh."
+        case .emptyResponse:
+            return "Codex returned an empty response during the last refresh."
+        case .unexpectedContentType:
+            return "Codex returned a non-JSON response during the last refresh."
+        case .rateLimited:
+            return "Codex rate-limited the last refresh."
+        case .unauthorized, .forbidden:
+            return "Codex rejected the saved login during the last refresh."
+        case .httpStatus:
+            return "Codex returned an HTTP error during the last refresh."
+        case .decoding:
+            return "Codex data could not be decoded during the last refresh."
+        case .accountChanged:
+            return "Codex account changed during refresh."
+        case .usageFailed:
+            return "Usage meters did not refresh."
+        case .resetCreditsFailed:
+            return "Reset stash did not refresh."
+        case .persistenceFailed:
+            return "Account snapshot could not be saved."
+        }
+    }
+
+    private func append(message: String, to existing: String?) -> String {
+        guard let existing, !existing.isEmpty else {
+            return message
+        }
+        return "\(existing) \(message)"
     }
 
     private func display(for window: UsageLimitWindow, fallbackID: String, limitReached: Bool) -> UsageLimitDisplay {
