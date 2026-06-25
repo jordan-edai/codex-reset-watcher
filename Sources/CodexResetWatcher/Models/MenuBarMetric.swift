@@ -17,7 +17,7 @@ enum MenuBarMetric: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    var menuBarSuffix: String {
+    var fallbackCue: String {
         switch self {
         case .weekly:
             return "week"

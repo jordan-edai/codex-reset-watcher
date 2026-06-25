@@ -5,11 +5,11 @@ struct CreditRowView: View {
     var ordinal: Int?
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: CodexStyle.Spacing.panel) {
             Image(systemName: credit.isAvailable ? "checkmark.seal.fill" : "clock.badge.xmark")
                 .font(.title3)
                 .foregroundStyle(urgencyTint)
-                .frame(width: 26)
+                .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
@@ -17,8 +17,8 @@ struct CreditRowView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(CodexPalette.secondaryText)
                     Text(DateFormatting.weekdayCompact(credit.expiresAt))
-                        .font(.system(size: 21, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
+                        .font(CodexStyle.Typography.cardMetric)
+                        .foregroundStyle(CodexPalette.primaryText)
                         .monospacedDigit()
                 }
 
@@ -44,15 +44,10 @@ struct CreditRowView: View {
                 .foregroundStyle(badgeForeground)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
-                .background(urgencyTint, in: Capsule())
+                .background(urgencyTint, in: RoundedRectangle(cornerRadius: CodexStyle.Radius.pill, style: .continuous))
         }
-        .padding(12)
-        .background(rowBackground, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(urgencyTint.opacity(borderOpacity))
-        }
-        .shadow(color: .black.opacity(0.035), radius: 8, y: 1)
+        .padding(CodexStyle.Spacing.panel)
+        .codexPanel(background: rowBackground, border: urgencyTint.opacity(borderOpacity))
     }
 
     private var urgency: ResetExpiryUrgency {

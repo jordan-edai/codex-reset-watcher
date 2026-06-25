@@ -29,7 +29,7 @@ final class ResetCreditsStore: ObservableObject {
     func menuBarTitle(for metric: MenuBarMetric) -> String {
         if let window = usageWindow(for: metric),
            let remaining = window.remainingPercent {
-            return "\(remaining)% | \(metric.menuBarSuffix)"
+            return "\(remaining)% | \(menuBarResetCue(for: metric, window: window.window))"
         }
         return resetFallbackTitle
     }
@@ -40,6 +40,29 @@ final class ResetCreditsStore: ObservableObject {
 
     private var resetFallbackTitle: String {
         "\(availableCount) reset\(availableCount == 1 ? "" : "s")"
+    }
+
+    private func menuBarResetCue(for metric: MenuBarMetric, window: UsageLimitWindow) -> String {
+        guard let resetDate = resetDate(for: window) else {
+            return metric.fallbackCue
+        }
+
+        switch metric {
+        case .weekly:
+            return DateFormatting.weekdayName(resetDate)
+        case .fiveHour:
+            return DateFormatting.timeOnly(resetDate)
+        }
+    }
+
+    private func resetDate(for window: UsageLimitWindow) -> Date? {
+        if let resetDate = window.resetDate {
+            return resetDate
+        }
+        guard let seconds = window.resetAfterSeconds else {
+            return nil
+        }
+        return Date().addingTimeInterval(TimeInterval(max(0, seconds)))
     }
 
     var statusSymbolName: String {

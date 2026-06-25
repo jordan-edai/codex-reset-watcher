@@ -17,13 +17,13 @@ https://github.com/jordan-edai/codex-reset-watcher
 Current release:
 
 ```text
-v0.2.4
+v0.2.5
 ```
 
 Latest tracked release state:
 
 ```text
-v0.2.4 menu dropdown reset labels
+v0.2.5 menu and desktop design-system polish
 ```
 
 ## What Is Shipped
@@ -33,21 +33,24 @@ v0.2.4 menu dropdown reset labels
 - `v0.2.0`: added current 5-hour and weekly usage limits, reset-use nudges,
   expiry urgency states, generated Codex-adjacent visuals, tests, CI packaging,
   and public privacy/security docs.
-- `v0.2.1`: changed the menu bar title to show weekly remaining usage such as
-  `63% | week`, kept the status icon, added a regression test, and published a
-  versioned release zip.
+- `v0.2.1`: changed the menu bar title to show weekly usage, kept the status
+  icon, added a regression test, and published a versioned release zip.
 - `v0.2.2`: fixed the actual macOS menu bar rendering so the status icon and
   weekly text are visible together instead of collapsing to icon-only.
-- `v0.2.3`: added a dropdown toggle for choosing whether the menu bar shows
-  weekly remaining usage or 5-hour remaining usage.
+- `v0.2.3`: added a dropdown toggle for choosing whether the menu bar follows
+  the weekly or 5-hour usage window.
 - `v0.2.4`: labeled reset-credit expiry dates and 5-hour/weekly reset timing in
   the dropdown, improved menu readability, and showed the active account label.
+- `v0.2.5`: added shared design-system tokens/modifiers, stabilized menu
+  columns and gutters, split dropdown expiry dates into date/time lines,
+  changed the menu bar title to show reset cues such as `57% | Sunday` or
+  `80% | 9:50 PM`, and aligned desktop panel styling with the menu.
 
 ## Current GitHub State
 
 - Repo is public.
 - Repo description: `Local-first macOS menu bar app for Codex usage limits and reset credits.`
-- Latest release is `v0.2.4`.
+- Latest release is `v0.2.5`.
 - `v0.2.0` release asset cleanup was completed; the duplicate generic
   `Codex.Reset.Watcher.zip` was removed and the versioned zip was kept.
 - PR #1 shipped usage limits and reset nudges.
@@ -65,6 +68,10 @@ v0.2.4 menu dropdown reset labels
 - Do not store Codex bearer tokens outside the running app process.
 - Keep the UI focused on the reset/usage question instead of growing into a
   broader Codex Cockpit.
+- Keep visual updates on the shared `CodexPalette` and `CodexStyle` tokens
+  before adding one-off colors, radii, spacing, or panel styles.
+- Use [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) as the future-maintainer guardrail
+  for menu and desktop visual changes.
 - Use generated visual assets only when they are checked in and documented as
   non-logo, project-specific artwork.
 - Use tolerant decoding and partial-data rendering because Codex internal

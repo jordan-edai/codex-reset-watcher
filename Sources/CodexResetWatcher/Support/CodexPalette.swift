@@ -9,20 +9,20 @@ enum CodexPalette {
         Color(nsColor: .controlBackgroundColor)
     }
 
-    static var subtleBackground: Color {
-        Color(nsColor: .windowBackgroundColor)
+    static var panelBackground: Color {
+        cardBackground
     }
 
     static var menuPopoverBackground: Color {
         Color(nsColor: .textBackgroundColor)
     }
 
-    static var menuRowBackground: Color {
+    static var rowBackground: Color {
         Color.primary.opacity(0.045)
     }
 
-    static var menuAccentBackground: Color {
-        Color.accentColor.opacity(0.12)
+    static var selectedRowBackground: Color {
+        Color.accentColor.opacity(0.08)
     }
 
     static var primaryText: Color {
@@ -45,12 +45,20 @@ enum CodexPalette {
         Color.primary.opacity(0.08)
     }
 
+    static var selectedBorder: Color {
+        Color.accentColor.opacity(0.14)
+    }
+
+    static var accent: Color {
+        Color.accentColor
+    }
+
     static var availableGreen: Color {
-        Color(red: 0.0, green: 0.52, blue: 0.18)
+        Color(red: 0.0, green: 0.45, blue: 0.16)
     }
 
     static var warningOrange: Color {
-        Color(red: 0.86, green: 0.36, blue: 0.02)
+        Color(red: 0.82, green: 0.34, blue: 0.02)
     }
 
     static var urgentRed: Color {

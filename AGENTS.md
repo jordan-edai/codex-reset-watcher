@@ -10,9 +10,9 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Public GitHub repo: `https://github.com/jordan-edai/codex-reset-watcher`
 - Canonical local path: `/Users/everydayai/Documents/!Codex Projects/Rate Refresher Project`
 - Compatibility path: `/Users/everydayai/Documents/Rate Refresher Project`
-- Latest shipped release: `v0.2.4`
+- Latest shipped release: `v0.2.5`
 - Check `git log --oneline --decorate -5` for the current `main` commit; this
-  note tracks the repo state through the `v0.2.4` menu-label release.
+  note tracks the repo state through the `v0.2.5` design-system polish release.
 - App bundle version is set in `script/build_and_run.sh`.
 
 ## Product Decisions
@@ -27,16 +27,25 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
   - `https://chatgpt.com/backend-api/wham/rate-limit-reset-credits`
 - These endpoints can change without notice. Keep decoding tolerant and failure
   handling partial-data-friendly.
-- The menu bar title should prioritize weekly remaining usage, for example
-  `63% | week`, with the status icon beside it.
+- The menu bar title should prioritize the selected limit's remaining usage and
+  next reset cue, for example `57% | Sunday` for weekly or `80% | 9:50 PM` for
+  5-hour, with the status icon beside it.
 - Use an explicit SwiftUI `HStack` label for `MenuBarExtra`; a `Label` can
   collapse to icon-only in the real macOS menu bar even when the title string
   itself is correct.
 - The dropdown includes a persisted `Menu bar` segmented control. `Week` shows
-  weekly remaining usage, and `5h` shows the 5-hour remaining usage.
+  weekly remaining usage plus the next weekly reset weekday, and `5h` shows the
+  5-hour remaining usage plus the next 5-hour reset time.
 - Reset-credit rows in the dropdown should always label the date, for example
   `Reset 1 expires:`. The 5-hour and weekly usage rows should also label when
   those windows reset.
+- Visual styling should flow through `CodexPalette` and `CodexStyle`. Prefer
+  shared spacing, radius, type, row, and panel tokens over one-off view-local
+  constants so the menu dropdown and desktop window stay visually aligned.
+- Read `DESIGN_SYSTEM.md` before making visual changes.
+- Read `DESIGN_SYSTEM.md` before making visual changes.
+- The menu dropdown uses fixed icon, content, metric, and date columns. Preserve
+  that rhythm when adding rows so labels do not bleed into popover edges.
 - The active account label can come from the usage response email, local
   `id_token` email/name, or a short account-id fallback. Do not store identity
   snapshots in `v0.2.x`; multi-account snapshots belong in a privacy-reviewed

@@ -64,6 +64,50 @@ enum DateFormatting {
         return formatter.string(from: date)
     }
 
+    static func weekdayDate(_ value: String?) -> String {
+        weekdayDate(parse(value))
+    }
+
+    static func weekdayDate(_ date: Date?) -> String {
+        guard let date else {
+            return "-"
+        }
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "EEE, MMM d"
+        formatter.timeZone = .current
+        return formatter.string(from: date)
+    }
+
+    static func weekdayName(_ date: Date?) -> String {
+        guard let date else {
+            return "-"
+        }
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "EEEE"
+        formatter.timeZone = .current
+        return formatter.string(from: date)
+    }
+
+    static func timeOnly(_ value: String?) -> String {
+        timeOnly(parse(value))
+    }
+
+    static func timeOnly(_ date: Date?) -> String {
+        guard let date else {
+            return "-"
+        }
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "h:mm a"
+        formatter.timeZone = .current
+        return formatter.string(from: date)
+    }
+
     static func expiry(_ value: String?) -> String {
         guard let date = parse(value) else {
             return "-"

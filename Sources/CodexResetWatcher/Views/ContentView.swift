@@ -5,7 +5,7 @@ struct ContentView: View {
     @ObservedObject var store: ResetCreditsStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: CodexStyle.Spacing.section) {
             headerCard
 
             ForEach(store.errorMessages, id: \.self) { message in
@@ -16,12 +16,12 @@ struct ContentView: View {
                 loadingState
             } else {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: CodexStyle.Spacing.stack) {
                         resetSection
 
                         NudgeCardView(nudge: store.nudge)
 
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: CodexStyle.Spacing.panel) {
                             ForEach(store.usageWindows) { window in
                                 UsageLimitCardView(window: window)
                             }
@@ -33,15 +33,15 @@ struct ContentView: View {
 
             footer
         }
-        .padding(16)
+        .padding(CodexStyle.Spacing.page)
         .background(CodexPalette.appBackground)
     }
 
     private var headerCard: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: CodexStyle.Spacing.panel) {
             HeaderArtworkView()
-                .frame(width: 104, height: 58)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .frame(width: CodexStyle.Size.artworkWidth, height: CodexStyle.Size.artworkHeight)
+                .clipShape(RoundedRectangle(cornerRadius: CodexStyle.Radius.artwork, style: .continuous))
 
             VStack(alignment: .leading, spacing: 5) {
                 Label(store.planLabel, systemImage: "terminal.fill")
@@ -49,7 +49,7 @@ struct ContentView: View {
                     .foregroundStyle(CodexPalette.mutedText)
 
                 Text("Codex Reset Watcher")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .font(CodexStyle.Typography.appTitle)
 
                 Text(DateFormatting.checked(store.lastChecked))
                     .font(.subheadline)
@@ -59,33 +59,29 @@ struct ContentView: View {
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(CodexPalette.secondaryText)
                     .lineLimit(1)
+                    .truncationMode(.middle)
             }
 
             Spacer()
 
             VStack(alignment: .trailing, spacing: 3) {
                 Text("\(store.availableCount)")
-                    .font(.system(size: 38, weight: .bold, design: .rounded))
+                    .font(CodexStyle.Typography.largeMetric)
                     .monospacedDigit()
                 Text(store.availableCount == 1 ? "reset banked" : "resets banked")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(CodexPalette.secondaryText)
             }
         }
-        .padding(12)
-        .background(CodexPalette.cardBackground, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(CodexPalette.border)
-        }
-        .shadow(color: .black.opacity(0.05), radius: 10, y: 2)
+        .padding(CodexStyle.Spacing.panel)
+        .codexPanel()
     }
 
     private var resetSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: CodexStyle.Spacing.stack) {
             HStack {
-                Text("Reset Expiry")
-                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                Text("Reset expiry")
+                    .font(CodexStyle.Typography.sectionTitle)
                 Spacer()
                 Text("\(store.availableCount) available")
                     .font(.subheadline.weight(.semibold))
@@ -109,7 +105,7 @@ struct ContentView: View {
             ProgressView()
                 .controlSize(.large)
             Text("Checking the Codex fuel gauge...")
-                .font(.system(size: 19, weight: .semibold, design: .rounded))
+                .font(CodexStyle.Typography.sectionTitle)
             Text("Fetching 5h, weekly, and reset-stash windows.")
                 .font(.body)
                 .foregroundStyle(CodexPalette.secondaryText)
@@ -142,36 +138,32 @@ struct ContentView: View {
                 .font(.system(size: 30))
                 .foregroundStyle(CodexPalette.secondaryText)
             Text("No banked resets right now.")
-                .font(.system(size: 19, weight: .semibold, design: .rounded))
+                .font(CodexStyle.Typography.sectionTitle)
             Text("Codex answered, but the reset stash is empty.")
                 .font(.body)
                 .foregroundStyle(CodexPalette.secondaryText)
         }
         .padding(20)
         .frame(maxWidth: .infinity)
-        .background(CodexPalette.cardBackground, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(CodexPalette.border)
-        }
+        .codexPanel(shadow: false)
     }
 
     private func errorBanner(_ message: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
+                .foregroundStyle(CodexPalette.warningOrange)
             Text(message)
                 .font(.body)
-                .foregroundStyle(.primary)
+                .foregroundStyle(CodexPalette.primaryText)
                 .lineLimit(3)
         }
-        .padding(9)
+        .padding(CodexStyle.Spacing.rowVertical)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.orange.opacity(0.10), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(.orange.opacity(0.24))
-        }
+        .codexPanel(
+            background: CodexPalette.warningOrange.opacity(0.10),
+            border: CodexPalette.warningOrange.opacity(0.24),
+            shadow: false
+        )
     }
 }
 
@@ -183,11 +175,12 @@ private struct HeaderArtworkView: View {
                 .resizable()
                 .scaledToFill()
         } else {
-            LinearGradient(
-                colors: [.cyan, .blue, .purple, .green.opacity(0.75), .orange.opacity(0.55)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            ZStack {
+                CodexPalette.rowBackground
+                Image(systemName: "terminal.fill")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(CodexPalette.secondaryText)
+            }
         }
     }
 }
@@ -199,16 +192,14 @@ private struct UsageLimitCardView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Label(window.title, systemImage: iconName)
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .font(CodexStyle.Typography.cardTitle)
                 Spacer()
                 Text(percentText(window.remainingPercent))
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .font(CodexStyle.Typography.cardMetric)
                     .monospacedDigit()
             }
 
-            ProgressView(value: Double(window.remainingPercent ?? 0), total: 100)
-                .tint(tint)
-                .controlSize(.large)
+            LimitMeterView(remainingPercent: window.remainingPercent, tint: tint)
 
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
                 GridRow {
@@ -218,25 +209,20 @@ private struct UsageLimitCardView: View {
                         .monospacedDigit()
                 }
                 GridRow {
-                    Text("Resets")
+                    Text("Resets in")
                         .foregroundStyle(CodexPalette.secondaryText)
                     Text(DateFormatting.duration(seconds: window.window.resetAfterSeconds))
                 }
                 GridRow {
-                    Text("At")
+                    Text("Resets at")
                         .foregroundStyle(CodexPalette.secondaryText)
                     Text(DateFormatting.weekdayCompact(window.window.resetDate))
                 }
             }
             .font(.subheadline)
         }
-        .padding(13)
-        .background(CodexPalette.cardBackground, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(CodexPalette.border)
-        }
-        .shadow(color: .black.opacity(0.035), radius: 8, y: 1)
+        .padding(CodexStyle.Spacing.panel)
+        .codexPanel()
     }
 
     private var iconName: String {
@@ -252,15 +238,15 @@ private struct UsageLimitCardView: View {
 
     private var tint: Color {
         guard let remaining = window.remainingPercent else {
-            return .secondary
+            return CodexPalette.secondaryText
         }
         if remaining <= 15 {
-            return .red
+            return CodexPalette.urgentRed
         }
         if remaining <= 30 {
-            return .orange
+            return CodexPalette.warningOrange
         }
-        return .green
+        return CodexPalette.availableGreen
     }
 
     private func percentText(_ value: Int?) -> String {
@@ -268,6 +254,32 @@ private struct UsageLimitCardView: View {
             return "-"
         }
         return "\(value)%"
+    }
+}
+
+private struct LimitMeterView: View {
+    let remainingPercent: Int?
+    let tint: Color
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: CodexStyle.Radius.pill, style: .continuous)
+                    .fill(CodexPalette.rowBackground)
+                RoundedRectangle(cornerRadius: CodexStyle.Radius.pill, style: .continuous)
+                    .fill(tint)
+                    .frame(width: proxy.size.width * clampedValue)
+            }
+        }
+        .frame(height: 6)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Remaining")
+        .accessibilityValue(remainingPercent.map { "\($0)%" } ?? "Unknown")
+    }
+
+    private var clampedValue: CGFloat {
+        let value = CGFloat(max(0, min(100, remainingPercent ?? 0)))
+        return value / 100
     }
 }
 
@@ -284,7 +296,7 @@ private struct NudgeCardView: View {
             VStack(alignment: .leading, spacing: 5) {
                 HStack {
                     Text(nudge.title)
-                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .font(CodexStyle.Typography.cardTitle)
                     Spacer()
                     Text(nudge.detail)
                         .font(.subheadline.weight(.semibold))
@@ -299,13 +311,8 @@ private struct NudgeCardView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(12)
-        .background(CodexPalette.cardBackground, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(tint.opacity(0.32))
-        }
-        .shadow(color: .black.opacity(0.035), radius: 8, y: 1)
+        .padding(CodexStyle.Spacing.panel)
+        .codexPanel(border: tint.opacity(0.28))
     }
 
     private var iconName: String {
@@ -334,19 +341,17 @@ private struct NudgeCardView: View {
     private var tint: Color {
         switch nudge.tier {
         case .spend:
-            return .green
+            return CodexPalette.availableGreen
         case .expiringReset:
             return CodexPalette.urgentRed
         case .deadline:
             return CodexPalette.warningOrange
         case .useIfBlocked:
-            return .orange
-        case .waitFiveHour, .hold:
-            return .blue
-        case .steady:
-            return .teal
+            return CodexPalette.warningOrange
+        case .waitFiveHour, .hold, .steady:
+            return CodexPalette.accent
         case .noResets, .unavailable:
-            return .secondary
+            return CodexPalette.secondaryText
         }
     }
 }

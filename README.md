@@ -8,7 +8,8 @@ It reads your existing local Codex Desktop login from `~/.codex/auth.json`, call
 
 - current 5-hour usage remaining
 - current weekly usage remaining
-- menu bar display switching between weekly and 5-hour remaining usage
+- menu bar display switching between weekly reset-day and 5h reset-time cues,
+  for example `57% | Sunday` or `80% | 9:50 PM`
 - active account label from the current local Codex login or usage response
 - banked reset credits and expiry dates
 - expiry urgency warnings as reset credits get closer to lapsing
@@ -57,6 +58,17 @@ Reset-credit rows also change urgency as expiry gets close: available, this week
 ## Visual Assets
 
 `Assets/AppIconSource.png` and `Assets/UsageHeader.png` are AI-generated artwork created for this project. They are included with the MIT-licensed source and are not OpenAI logos or product marks.
+
+## Design System
+
+Shared visual tokens live in `Sources/CodexResetWatcher/Support/CodexPalette.swift`
+and `Sources/CodexResetWatcher/Support/CodexStyle.swift`. Use those colors,
+spacing values, radii, typography styles, and panel/row modifiers for menu and
+desktop UI changes so the app stays visually consistent. See
+[DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) before making visual changes.
+
+See [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for the guardrails future visual
+updates should follow.
 
 ## What It Calls
 

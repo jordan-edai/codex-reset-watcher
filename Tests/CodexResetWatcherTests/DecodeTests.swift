@@ -68,6 +68,21 @@ final class DecodeTests: XCTestCase {
         XCTAssertTrue(value.hasPrefix("Fri, Jul 17 at "))
     }
 
+    @MainActor
+    func testWeekdayDateAndTimeOnlySplitMenuDates() {
+        var components = DateComponents()
+        components.calendar = Calendar(identifier: .gregorian)
+        components.timeZone = .current
+        components.year = 2026
+        components.month = 7
+        components.day = 17
+        components.hour = 19
+        components.minute = 38
+
+        XCTAssertEqual(DateFormatting.weekdayDate(components.date), "Fri, Jul 17")
+        XCTAssertEqual(DateFormatting.timeOnly(components.date), "7:38 PM")
+    }
+
     func testBase64URLDecodesUnpaddedPayload() {
         let decoded = Data(base64URLString: "eyJhY2NvdW50IjoiYWNjdF8xMjMifQ")
 
@@ -177,7 +192,9 @@ final class CodexAPIClientTests: XCTestCase {
     }
 
     @MainActor
-    func testMenuBarTitleShowsSelectedUsageWindowWhenUsageIsLoaded() async throws {
+    func testMenuBarTitleShowsSelectedUsageWindowResetCueWhenUsageIsLoaded() async throws {
+        let fiveHourResetAt = localTimestamp(year: 2026, month: 7, day: 17, hour: 21, minute: 50)
+        let weeklyResetAt = localTimestamp(year: 2026, month: 7, day: 19, hour: 8, minute: 0)
         let client = try makeClient { request in
             switch request.url?.path {
             case "/backend-api/wham/rate-limit-reset-credits":
@@ -193,12 +210,14 @@ final class CodexAPIClientTests: XCTestCase {
                     "primary_window": {
                       "used_percent": 71,
                       "limit_window_seconds": 18000,
-                      "reset_after_seconds": 3600
+                      "reset_after_seconds": 3600,
+                      "reset_at": \(fiveHourResetAt)
                     },
                     "secondary_window": {
                       "used_percent": 37,
                       "limit_window_seconds": 604800,
-                      "reset_after_seconds": 259200
+                      "reset_after_seconds": 259200,
+                      "reset_at": \(weeklyResetAt)
                     }
                   }
                 }
@@ -213,9 +232,9 @@ final class CodexAPIClientTests: XCTestCase {
 
         await store.refresh()
 
-        XCTAssertEqual(store.menuBarTitle, "63% | week")
-        XCTAssertEqual(store.menuBarTitle(for: .weekly), "63% | week")
-        XCTAssertEqual(store.menuBarTitle(for: .fiveHour), "29% | 5h")
+        XCTAssertEqual(store.menuBarTitle, "63% | Sunday")
+        XCTAssertEqual(store.menuBarTitle(for: .weekly), "63% | Sunday")
+        XCTAssertEqual(store.menuBarTitle(for: .fiveHour), "29% | 9:50 PM")
         XCTAssertEqual(store.accountDisplayLabel, "builder@example.com")
     }
 
@@ -247,6 +266,18 @@ private func makeAuthJSON(accessToken: String, accountID: String?) -> String {
         return #"{"tokens":{"access_token":"\#(accessToken)","account_id":"\#(accountID)"}}"#
     }
     return #"{"tokens":{"access_token":"\#(accessToken)"}}"#
+}
+
+private func localTimestamp(year: Int, month: Int, day: Int, hour: Int, minute: Int) -> Int {
+    var components = DateComponents()
+    components.calendar = Calendar(identifier: .gregorian)
+    components.timeZone = .current
+    components.year = year
+    components.month = month
+    components.day = day
+    components.hour = hour
+    components.minute = minute
+    return Int(components.date!.timeIntervalSince1970)
 }
 
 private func testHTTPResponse(
