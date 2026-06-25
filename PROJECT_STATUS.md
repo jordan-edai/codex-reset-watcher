@@ -17,13 +17,13 @@ https://github.com/jordan-edai/codex-reset-watcher
 Current release:
 
 ```text
-v0.2.3
+v0.2.4
 ```
 
 Latest tracked release state:
 
 ```text
-v0.2.3 menu bar metric toggle
+v0.2.4 menu dropdown reset labels
 ```
 
 ## What Is Shipped
@@ -40,18 +40,21 @@ v0.2.3 menu bar metric toggle
   weekly text are visible together instead of collapsing to icon-only.
 - `v0.2.3`: added a dropdown toggle for choosing whether the menu bar shows
   weekly remaining usage or 5-hour remaining usage.
+- `v0.2.4`: labeled reset-credit expiry dates and 5-hour/weekly reset timing in
+  the dropdown, improved menu readability, and showed the active account label.
 
 ## Current GitHub State
 
 - Repo is public.
 - Repo description: `Local-first macOS menu bar app for Codex usage limits and reset credits.`
-- Latest release is `v0.2.3`.
+- Latest release is `v0.2.4`.
 - `v0.2.0` release asset cleanup was completed; the duplicate generic
   `Codex.Reset.Watcher.zip` was removed and the versioned zip was kept.
 - PR #1 shipped usage limits and reset nudges.
 - PR #2 shipped the weekly menu bar title.
 - PR #4 fixed the visible menu bar label and versioned release upload path.
 - PR #5 added the menu bar metric toggle.
+- PR #6 labeled dropdown reset dates and limit reset timing.
 
 ## Key Decisions
 
@@ -119,6 +122,9 @@ unless the user explicitly asks.
 
 ## Next Sensible Improvements
 
+- Build the conservative multi-account snapshot system described in
+  [MULTI_ACCOUNT_PLAN.md](MULTI_ACCOUNT_PLAN.md) as a privacy-reviewed
+  `v0.3.0` feature.
 - Consider moving from direct internal `/wham` calls toward Codex app-server
   account usage/rate-limit APIs if those become stable enough for this use.
 - Add notarized release packaging if public adoption grows.

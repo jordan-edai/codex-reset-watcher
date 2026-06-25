@@ -13,6 +13,18 @@ enum CodexPalette {
         Color(nsColor: .windowBackgroundColor)
     }
 
+    static var menuPopoverBackground: Color {
+        Color(nsColor: .textBackgroundColor)
+    }
+
+    static var menuRowBackground: Color {
+        Color.primary.opacity(0.045)
+    }
+
+    static var menuAccentBackground: Color {
+        Color.accentColor.opacity(0.12)
+    }
+
     static var primaryText: Color {
         Color.primary
     }

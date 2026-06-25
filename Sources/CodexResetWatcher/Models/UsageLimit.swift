@@ -1,6 +1,9 @@
 import Foundation
 
 struct CodexUsageResponse: Decodable, Sendable {
+    let email: String?
+    let accountId: String?
+    let userId: String?
     let planType: String?
     let rateLimit: CodexRateLimit?
     let rateLimitResetCredits: ResetCreditCount?

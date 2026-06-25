@@ -9,6 +9,7 @@ final class ResetCreditsStore: ObservableObject {
     @Published private(set) var isRefreshing = false
     @Published private(set) var creditsErrorMessage: String?
     @Published private(set) var usageErrorMessage: String?
+    @Published private(set) var accountIdentity = CodexAccountIdentity(accountId: nil, email: nil, name: nil)
 
     private let client: CodexAPIClient
     private var refreshTask: Task<Void, Never>?
@@ -95,6 +96,10 @@ final class ResetCreditsStore: ObservableObject {
             .joined(separator: " ")
     }
 
+    var accountDisplayLabel: String {
+        accountIdentity.displayLabel
+    }
+
     private var resetUrgencies: [ResetExpiryUrgency] {
         availableCredits.map { credit in
             ResetExpiryUrgency.make(
@@ -131,6 +136,10 @@ final class ResetCreditsStore: ObservableObject {
             return
         }
 
+        if let identity = try? client.loadAccountIdentity() {
+            accountIdentity = identity
+        }
+
         isRefreshing = true
         defer {
             isRefreshing = false
@@ -150,7 +159,9 @@ final class ResetCreditsStore: ObservableObject {
         }
 
         do {
-            usage = try await fetchUsageResult().get()
+            let response = try await fetchUsageResult().get()
+            usage = response
+            accountIdentity = mergedIdentity(with: response)
             if creditsErrorMessage != nil,
                credits.isEmpty,
                let fallbackCount = usage?.rateLimitResetCredits?.availableCount {
@@ -203,6 +214,14 @@ final class ResetCreditsStore: ObservableObject {
     private func refreshErrorMessage(area: String, error: Error, hasPriorData: Bool) -> String {
         let prefix = hasPriorData ? "Could not refresh \(area); showing the last known numbers." : "Could not load \(area)."
         return "\(prefix) \(error.localizedDescription)"
+    }
+
+    private func mergedIdentity(with response: CodexUsageResponse) -> CodexAccountIdentity {
+        CodexAccountIdentity(
+            accountId: response.accountId ?? accountIdentity.accountId,
+            email: response.email ?? accountIdentity.email,
+            name: accountIdentity.name
+        )
     }
 
     private func display(for window: UsageLimitWindow, fallbackID: String, limitReached: Bool) -> UsageLimitDisplay {

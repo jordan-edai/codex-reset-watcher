@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.4 - 2026-06-24
+
+- Labels reset-credit expiry rows in the menu bar dropdown, for example
+  `Reset 1 expires: Fri, Jul 17 at 7:38 PM`.
+- Adds reset timing labels under the 5-hour and weekly limit rows in the
+  dropdown.
+- Adds weekdays to reset and expiry timestamps and improves the dropdown's
+  contrast, row spacing, and type scale.
+- Shows the active Codex account label in the menu bar dropdown and main app.
+- Documents the conservative `v0.3.0` multi-account snapshot plan.
+
 ## 0.2.3 - 2026-06-24
 
 - Adds a menu-bar display toggle in the dropdown so each user can choose

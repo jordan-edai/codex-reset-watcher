@@ -17,6 +17,20 @@ struct CodexAPIClient: Sendable {
         try await fetch(CodexUsageResponse.self, from: usageEndpoint)
     }
 
+    func loadAccountIdentity() throws -> CodexAccountIdentity {
+        let auth = try loadAuth()
+        let idTokenPayload = jwtPayload(from: auth.tokens.idToken)
+        let idTokenAuth = idTokenPayload?["https://api.openai.com/auth"] as? [String: Any]
+        let accessTokenAccountId = accountId(from: auth.tokens.accessToken, fallback: auth.tokens.accountId)
+        let idTokenAccountId = idTokenAuth?["chatgpt_account_id"] as? String
+
+        return CodexAccountIdentity(
+            accountId: idTokenAccountId ?? accessTokenAccountId,
+            email: idTokenPayload?["email"] as? String,
+            name: idTokenPayload?["name"] as? String
+        )
+    }
+
     private func fetch<Response: Decodable>(_ responseType: Response.Type, from endpoint: URL) async throws -> Response {
         let auth = try loadAuth()
         var request = URLRequest(url: endpoint)
@@ -78,16 +92,22 @@ struct CodexAPIClient: Sendable {
     }
 
     private func accountId(from token: String, fallback: String?) -> String? {
+        let auth = jwtPayload(from: token)?["https://api.openai.com/auth"] as? [String: Any]
+        return auth?["chatgpt_account_id"] as? String ?? fallback
+    }
+
+    private func jwtPayload(from token: String?) -> [String: Any]? {
+        guard let token else {
+            return nil
+        }
         let parts = token.split(separator: ".")
         guard parts.count >= 2,
               let payloadData = Data(base64URLString: String(parts[1])),
-              let json = try? JSONSerialization.jsonObject(with: payloadData) as? [String: Any],
-              let auth = json["https://api.openai.com/auth"] as? [String: Any]
+              let json = try? JSONSerialization.jsonObject(with: payloadData) as? [String: Any]
         else {
-            return fallback
+            return nil
         }
-
-        return auth["chatgpt_account_id"] as? String ?? fallback
+        return json
     }
 }
 

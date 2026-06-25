@@ -15,6 +15,8 @@ Do not paste Codex auth tokens, `~/.codex/auth.json`, screenshots containing sec
 Codex Reset Watcher:
 
 - reads the local Codex Desktop auth file at `~/.codex/auth.json`
+- may read account name or email claims from the local Codex ID token only to
+  label the active account in the UI
 - sends the saved Codex bearer token only to:
   - `https://chatgpt.com/backend-api/wham/usage`
   - `https://chatgpt.com/backend-api/wham/rate-limit-reset-credits`
@@ -22,6 +24,7 @@ Codex Reset Watcher:
 - does not redeem resets
 - does not write to the auth file
 - does not store tokens elsewhere
+- does not store account snapshots in the current `v0.2.x` app
 - does not include analytics or telemetry
 
 The endpoint is internal and may change without notice.

@@ -54,6 +54,11 @@ struct ContentView: View {
                 Text(DateFormatting.checked(store.lastChecked))
                     .font(.subheadline)
                     .foregroundStyle(CodexPalette.secondaryText)
+
+                Text("Active: \(store.accountDisplayLabel)")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(CodexPalette.secondaryText)
+                    .lineLimit(1)
             }
 
             Spacer()
@@ -220,7 +225,7 @@ private struct UsageLimitCardView: View {
                 GridRow {
                     Text("At")
                         .foregroundStyle(CodexPalette.secondaryText)
-                    Text(DateFormatting.resetTime(window.window.resetDate))
+                    Text(DateFormatting.weekdayCompact(window.window.resetDate))
                 }
             }
             .font(.subheadline)
