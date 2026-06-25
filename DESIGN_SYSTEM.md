@@ -23,6 +23,9 @@ the visual priority.
   UI. The checked-in app icon and header artwork are enough.
 - Preserve the menu row grid: fixed icon column, flexible content column,
   compact metric column, and wider date/detail column when needed.
+- Keep the desktop multi-account sidebar native and lightweight: one icon, one
+  account label line, and one cached/active/stale detail line. Put dense metrics
+  in the detail pane, not the sidebar.
 - Keep the menu bar title decision-oriented: weekly mode shows the next reset
   weekday, and 5h mode shows the next reset time.
 - Menu rows should fit without horizontal clipping. If text gets tight, shorten
@@ -48,4 +51,6 @@ Then open the real macOS menu bar dropdown and check:
 - reset rows fit without scrolling when one or two resets are banked
 - the active segmented control is readable
 - the nudge detail does not crowd the percentage/date columns
+- cached account rows truncate long labels cleanly and never change the menu bar
+  title away from the active account
 - light and dark system appearances still have enough contrast

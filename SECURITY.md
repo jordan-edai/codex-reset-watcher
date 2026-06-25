@@ -24,7 +24,16 @@ Codex Reset Watcher:
 - does not redeem resets
 - does not write to the auth file
 - does not store tokens elsewhere
-- does not store account snapshots in the current `v0.2.x` app
+- stores only minimized derived multi-account snapshots under Application
+  Support
+- stores account snapshot keys as salted hashes, not full account IDs
+- does not store bearer tokens, refresh tokens, ID tokens, raw auth JSON, raw
+  endpoint JSON, full account IDs, user IDs, cookies, API keys, or reset credit
+  IDs in snapshots
 - does not include analytics or telemetry
+
+Each refresh loads one auth context and uses it for both usage and reset-credit
+requests so the app does not mix account identities if Codex Desktop changes
+login mid-refresh.
 
 The endpoint is internal and may change without notice.

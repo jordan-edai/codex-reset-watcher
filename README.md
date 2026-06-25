@@ -11,6 +11,8 @@ It reads your existing local Codex Desktop login from `~/.codex/auth.json`, call
 - menu bar display switching between weekly reset-day and 5h reset-time cues,
   for example `57% | Sunday` or `80% | 9:50 PM`
 - active account label from the current local Codex login or usage response
+- cached snapshots for previously seen Codex accounts, labeled separately from
+  the active account
 - banked reset credits and expiry dates
 - expiry urgency warnings as reset credits get closer to lapsing
 - a reset-use nudge based on remaining 5h/weekly capacity, reset timing, reset-credit expiry, and reset credits in the bank
@@ -55,6 +57,32 @@ The app uses rule-based advice from the data Codex returns for the current signe
 
 Reset-credit rows also change urgency as expiry gets close: available, this week, expires soon, ends today, or expired.
 
+## Multi-Account Snapshots
+
+The active Codex account is always the one currently signed into Codex Desktop.
+Codex Reset Watcher does not switch accounts for you.
+
+After a successful refresh, the app saves a minimized local snapshot for that
+account. If you later sign into a different Codex account, the current account
+updates live and previously seen accounts appear under **Other accounts** as
+cached snapshots.
+
+Cached snapshots are last-seen records, not live dashboards. They are labeled
+`Cached snapshot` or `Stale snapshot`, and they refresh only when that account
+becomes the active Codex Desktop login again.
+
+Snapshots are stored locally at:
+
+```text
+~/Library/Application Support/Codex Reset Watcher/account-snapshots.json
+```
+
+The app stores derived fields such as display label, plan label, last checked
+time, 5-hour/weekly percentages, reset times, reset count, and reset expiry
+dates. It does not store Codex bearer tokens, refresh tokens, ID tokens, raw
+auth JSON, raw endpoint responses, full account IDs, user IDs, cookies, API
+keys, or reset credit IDs.
+
 ## Visual Assets
 
 `Assets/AppIconSource.png` and `Assets/UsageHeader.png` are AI-generated artwork created for this project. They are included with the MIT-licensed source and are not OpenAI logos or product marks.
@@ -77,7 +105,11 @@ GET https://chatgpt.com/backend-api/wham/usage
 GET https://chatgpt.com/backend-api/wham/rate-limit-reset-credits
 ```
 
-Headers are built from the existing Codex Desktop auth file. The app sends the saved bearer token in the `Authorization` header and, when available, the active account id in the `ChatGPT-Account-Id` header to those endpoints. It does not redeem resets, mutate account state, or store your token anywhere else.
+Headers are built from the existing Codex Desktop auth file. The app loads one
+auth context per refresh, sends the saved bearer token in the `Authorization`
+header and, when available, the active account id in the `ChatGPT-Account-Id`
+header to those endpoints. It does not redeem resets, mutate account state, or
+store your token anywhere else.
 
 `/wham/usage` currently provides the 5-hour and weekly rate-limit windows. `/wham/rate-limit-reset-credits` provides detailed reset-credit expiry dates. These endpoints are internal and can change without notice.
 

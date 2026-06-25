@@ -1,0 +1,478 @@
+import Foundation
+import XCTest
+@testable import CodexResetWatcher
+
+final class AccountSnapshotPersistenceTests: XCTestCase {
+    func testSnapshotEncodingRedactsSensitiveSourceFields() throws {
+        let directory = try makeTemporaryDirectory()
+        let persistence = AccountSnapshotPersistence(
+            fileURL: directory.appendingPathComponent("account-snapshots.json"),
+            salt: "unit-test-salt"
+        )
+        let snapshot = CodexAccountSnapshot(
+            id: try persistence.snapshotID(for: "acct_full_sensitive_123456"),
+            displayLabel: "builder@example.com",
+            planLabel: "Pro",
+            lastChecked: Date(timeIntervalSince1970: 1_800_000_000),
+            usageWindows: [
+                AccountUsageWindowSnapshot(
+                    display: UsageLimitDisplay(
+                        id: "weekly",
+                        kind: .weekly,
+                        title: "Weekly limit",
+                        window: UsageLimitWindow(
+                            usedPercent: 42,
+                            limitWindowSeconds: 604_800,
+                            resetAfterSeconds: 86_400,
+                            resetAt: 1_800_086_400
+                        ),
+                        limitReached: false
+                    ),
+                    capturedAt: Date(timeIntervalSince1970: 1_800_000_000)
+                )
+            ],
+            resetCount: 1,
+            resetExpiries: [Date(timeIntervalSince1970: 1_800_172_800)],
+            status: .ok,
+            errors: []
+        )
+
+        try persistence.save([snapshot])
+
+        let json = try String(contentsOf: persistence.fileURL, encoding: .utf8)
+        XCTAssertFalse(json.contains("acct_full_sensitive_123456"))
+        XCTAssertFalse(json.contains("user_full_sensitive"))
+        XCTAssertFalse(json.contains("credit-full-sensitive"))
+        XCTAssertFalse(json.contains("eyJ"))
+        XCTAssertFalse(json.contains("access_token"))
+        XCTAssertFalse(json.contains("refresh_token"))
+        XCTAssertFalse(json.contains("auth.json"))
+        XCTAssertFalse(json.contains("rate_limit"))
+        XCTAssertTrue(json.contains("builder@example.com"))
+    }
+
+    func testDistinctAccountsWithSameLabelGetSeparateSnapshotKeys() throws {
+        let directory = try makeTemporaryDirectory()
+        let persistence = AccountSnapshotPersistence(
+            fileURL: directory.appendingPathComponent("account-snapshots.json"),
+            salt: "unit-test-salt"
+        )
+
+        let first = try persistence.snapshotID(for: "acct_a")
+        let second = try persistence.snapshotID(for: "acct_b")
+
+        XCTAssertNotEqual(first, second)
+    }
+
+    func testCorruptAndOldSchemaSnapshotFilesLoadAsEmpty() throws {
+        let directory = try makeTemporaryDirectory()
+        let fileURL = directory.appendingPathComponent("account-snapshots.json")
+        try Data("not json".utf8).write(to: fileURL)
+        var persistence = AccountSnapshotPersistence(fileURL: fileURL, salt: "unit-test-salt")
+        XCTAssertEqual(persistence.load(), [])
+
+        let oldSchema = #"{"schemaVersion":0,"snapshots":[]}"#
+        try Data(oldSchema.utf8).write(to: fileURL)
+        persistence = AccountSnapshotPersistence(fileURL: fileURL, salt: "unit-test-salt")
+        XCTAssertEqual(persistence.load(), [])
+    }
+
+    func testCachedSnapshotIsStaleAfterDisplayedResetPasses() throws {
+        let snapshot = CodexAccountSnapshot(
+            id: AccountSnapshotID(rawValue: "abc"),
+            displayLabel: "Cached",
+            planLabel: "Pro",
+            lastChecked: Date(timeIntervalSince1970: 1_800_000_000),
+            usageWindows: [
+                AccountUsageWindowSnapshot(
+                    display: UsageLimitDisplay(
+                        id: "five-hour",
+                        kind: .fiveHour,
+                        title: "5h limit",
+                        window: UsageLimitWindow(
+                            usedPercent: 50,
+                            limitWindowSeconds: 18_000,
+                            resetAfterSeconds: 60,
+                            resetAt: 1_800_000_100
+                        ),
+                        limitReached: false
+                    ),
+                    capturedAt: Date(timeIntervalSince1970: 1_800_000_000)
+                )
+            ],
+            resetCount: 1,
+            resetExpiries: [],
+            status: .ok,
+            errors: []
+        )
+
+        XCTAssertFalse(snapshot.isStale(now: Date(timeIntervalSince1970: 1_800_000_050)))
+        XCTAssertTrue(snapshot.isStale(now: Date(timeIntervalSince1970: 1_800_000_101)))
+    }
+
+    func testDurationOnlyCachedSnapshotAgesFromCaptureTime() throws {
+        let capturedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let window = AccountUsageWindowSnapshot(
+            display: UsageLimitDisplay(
+                id: "five-hour",
+                kind: .fiveHour,
+                title: "5h limit",
+                window: UsageLimitWindow(
+                    usedPercent: 50,
+                    limitWindowSeconds: 18_000,
+                    resetAfterSeconds: 60,
+                    resetAt: nil
+                ),
+                limitReached: false
+            ),
+            capturedAt: capturedAt
+        )
+        let snapshot = CodexAccountSnapshot(
+            id: AccountSnapshotID(rawValue: "duration-only"),
+            displayLabel: "Cached",
+            planLabel: "Pro",
+            lastChecked: capturedAt,
+            usageWindows: [window],
+            resetCount: 0,
+            resetExpiries: [],
+            status: .ok,
+            errors: []
+        )
+
+        let halfway = capturedAt.addingTimeInterval(30)
+        let expired = capturedAt.addingTimeInterval(61)
+
+        XCTAssertFalse(snapshot.isStale(now: halfway))
+        XCTAssertTrue(snapshot.isStale(now: expired))
+        XCTAssertEqual(window.display(cachedAt: capturedAt, now: halfway).window.resetAfterSeconds, 30)
+        XCTAssertEqual(window.display(cachedAt: capturedAt, now: expired).window.resetAfterSeconds, 0)
+    }
+
+    private func makeTemporaryDirectory() throws -> URL {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+}
+
+@MainActor
+final class AccountSnapshotStoreTests: XCTestCase {
+    func testRefreshPersistsSafeSnapshotForActiveAccount() async throws {
+        let harness = try StoreHarness()
+        let store = ResetCreditsStore(client: harness.client(accountID: "acct_a"), snapshotPersistence: harness.persistence)
+
+        await store.refresh()
+
+        XCTAssertEqual(store.snapshots.count, 1)
+        XCTAssertEqual(store.cachedSnapshots.count, 0)
+        XCTAssertEqual(store.accountDisplayLabel, "builder@example.com")
+        XCTAssertEqual(store.snapshots.first?.resetCount, 1)
+        XCTAssertEqual(store.snapshots.first?.usageWindows.count, 2)
+    }
+
+    func testAccountSwitchRaceDoesNotPersistMixedSnapshot() async throws {
+        let harness = try StoreHarness()
+        try harness.writeAuth(accountID: "acct_a")
+        let state = RequestState()
+        var client = harness.baseClient
+        client.perform = { request in
+            _ = await state.record()
+            try harness.writeAuth(accountID: "acct_b")
+            return try harness.successResponse(for: request, email: "builder@example.com")
+        }
+        let store = ResetCreditsStore(client: client, snapshotPersistence: harness.persistence)
+
+        await store.refresh()
+
+        XCTAssertEqual(store.snapshots.count, 0)
+        XCTAssertTrue(store.errorMessages.joined(separator: " ").contains("account changed"))
+    }
+
+    func testAccountSwitchRaceClearsPriorActiveData() async throws {
+        let harness = try StoreHarness()
+        try harness.writeAuth(accountID: "acct_a")
+        let state = RequestState()
+        var client = harness.baseClient
+        client.perform = { request in
+            let count = await state.record()
+            if count > 2 {
+                try harness.writeAuth(accountID: "acct_b")
+            }
+            return try harness.successResponse(for: request, email: "builder@example.com")
+        }
+        let store = ResetCreditsStore(client: client, snapshotPersistence: harness.persistence)
+
+        await store.refresh()
+        XCTAssertEqual(store.availableCount, 1)
+        XCTAssertEqual(store.usageWindows.count, 2)
+
+        await store.refresh()
+
+        XCTAssertEqual(store.usageWindows.count, 0)
+        XCTAssertEqual(store.availableCount, 0)
+        XCTAssertEqual(store.credits.count, 0)
+        XCTAssertEqual(store.snapshots.count, 1)
+        XCTAssertEqual(store.cachedSnapshots.count, 1)
+        XCTAssertTrue(store.errorMessages.joined(separator: " ").contains("account changed"))
+    }
+
+    func testAccountSwitchWithFailedRefreshDoesNotShowPriorActiveData() async throws {
+        let harness = try StoreHarness()
+        try harness.writeAuth(accountID: "acct_a")
+        var client = harness.baseClient
+        client.perform = { request in
+            let auth = try String(contentsOf: harness.authURL, encoding: .utf8)
+            if auth.contains("acct_b") {
+                return (Data("{}".utf8), testHTTPResponse(status: 500, contentType: "application/json"))
+            }
+            return try harness.successResponse(for: request, email: "builder@example.com")
+        }
+        let store = ResetCreditsStore(client: client, snapshotPersistence: harness.persistence)
+
+        await store.refresh()
+        XCTAssertEqual(store.availableCount, 1)
+        XCTAssertEqual(store.usageWindows.count, 2)
+
+        try harness.writeAuth(accountID: "acct_b")
+        await store.refresh()
+
+        XCTAssertEqual(store.usageWindows.count, 0)
+        XCTAssertEqual(store.availableCount, 0)
+        XCTAssertEqual(store.credits.count, 0)
+        XCTAssertEqual(store.snapshots.count, 1)
+        XCTAssertEqual(store.cachedSnapshots.count, 1)
+        XCTAssertTrue(store.errorMessages.joined(separator: " ").contains("Could not load"))
+    }
+
+    func testConflictingUsageAccountIDDoesNotPersistMixedSnapshot() async throws {
+        let harness = try StoreHarness()
+        let store = ResetCreditsStore(
+            client: harness.client(accountID: "acct_header", usageAccountID: "acct_usage"),
+            snapshotPersistence: harness.persistence
+        )
+
+        await store.refresh()
+
+        XCTAssertEqual(store.snapshots.count, 0)
+        XCTAssertEqual(store.usageWindows.count, 0)
+        XCTAssertEqual(store.availableCount, 0)
+        XCTAssertTrue(store.errorMessages.joined(separator: " ").contains("different account"))
+    }
+
+    func testSameEmailDifferentAccountIDsRemainSeparateSnapshots() async throws {
+        let harness = try StoreHarness()
+        var client = harness.client(accountID: "acct_a", email: "same@example.com")
+        let store = ResetCreditsStore(client: client, snapshotPersistence: harness.persistence)
+        await store.refresh()
+
+        client = harness.client(accountID: "acct_b", email: "same@example.com")
+        let secondStore = ResetCreditsStore(client: client, snapshotPersistence: harness.persistence)
+        await secondStore.refresh()
+
+        XCTAssertEqual(secondStore.snapshots.count, 2)
+        XCTAssertEqual(Set(secondStore.snapshots.map(\.id)).count, 2)
+    }
+
+    func testUsageResponseAccountIDCanKeySnapshotWhenAuthFallbackIsMissing() async throws {
+        let harness = try StoreHarness()
+        try harness.writeAuthWithoutAccountID()
+        var client = harness.baseClient
+        client.perform = { request in
+            try harness.successResponse(for: request, email: "builder@example.com", accountID: "acct_from_usage")
+        }
+        let store = ResetCreditsStore(client: client, snapshotPersistence: harness.persistence)
+
+        await store.refresh()
+
+        XCTAssertEqual(store.snapshots.count, 1)
+        XCTAssertEqual(store.cachedSnapshots.count, 0)
+        XCTAssertEqual(store.accountDisplayLabel, "builder@example.com")
+    }
+
+    func testMissingAuthPreservesCachedSnapshotsWithoutShowingThemAsActive() async throws {
+        let harness = try StoreHarness()
+        let existing = try harness.sampleSnapshot(accountID: "acct_cached")
+        try harness.persistence.save([existing])
+        try? FileManager.default.removeItem(at: harness.authURL)
+        let store = ResetCreditsStore(client: harness.baseClient, snapshotPersistence: harness.persistence)
+
+        await store.refresh()
+
+        XCTAssertEqual(store.snapshots.count, 1)
+        XCTAssertEqual(store.cachedSnapshots.count, 1)
+        XCTAssertEqual(store.usageWindows.count, 0)
+        XCTAssertEqual(store.availableCount, 0)
+        XCTAssertTrue(store.errorMessages.joined(separator: " ").contains("active account"))
+    }
+
+    func testPartialEndpointFailurePersistsSuccessfulUsageWithCoarseError() async throws {
+        let harness = try StoreHarness()
+        let store = ResetCreditsStore(
+            client: harness.client(accountID: "acct_a", failResetCredits: true),
+            snapshotPersistence: harness.persistence
+        )
+
+        await store.refresh()
+
+        let snapshot = try XCTUnwrap(store.snapshots.first)
+        XCTAssertEqual(snapshot.status, .partial)
+        XCTAssertTrue(snapshot.errors.contains(.resetCreditsFailed))
+        XCTAssertEqual(snapshot.usageWindows.count, 2)
+        XCTAssertEqual(snapshot.resetCount, 0)
+    }
+
+    func testForgetAndClearCachedAccountsPersistDeletion() async throws {
+        let harness = try StoreHarness()
+        let first = try harness.sampleSnapshot(accountID: "acct_a")
+        let second = try harness.sampleSnapshot(accountID: "acct_b")
+        try harness.persistence.save([first, second])
+        let store = ResetCreditsStore(client: harness.baseClient, snapshotPersistence: harness.persistence)
+
+        store.forgetSnapshot(id: first.id)
+        XCTAssertEqual(store.snapshots.map(\.id), [second.id])
+
+        let reloaded = ResetCreditsStore(client: harness.baseClient, snapshotPersistence: harness.persistence)
+        XCTAssertEqual(reloaded.snapshots.map(\.id), [second.id])
+
+        reloaded.clearCachedSnapshots()
+        XCTAssertEqual(reloaded.snapshots.count, 0)
+        XCTAssertEqual(harness.persistence.load().count, 0)
+    }
+}
+
+private actor RequestState {
+    private var count = 0
+
+    func record() -> Int {
+        count += 1
+        return count
+    }
+}
+
+private struct StoreHarness: @unchecked Sendable {
+    let directory: URL
+    let authURL: URL
+    let persistence: AccountSnapshotPersistence
+    var baseClient: CodexAPIClient
+
+    init() throws {
+        directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        authURL = directory.appendingPathComponent("auth.json")
+        persistence = AccountSnapshotPersistence(
+            fileURL: directory.appendingPathComponent("account-snapshots.json"),
+            salt: "unit-test-salt"
+        )
+        baseClient = CodexAPIClient()
+        baseClient.codexHome = directory
+    }
+
+    func client(
+        accountID: String,
+        email: String = "builder@example.com",
+        failResetCredits: Bool = false,
+        failUsage: Bool = false,
+        usageAccountID: String? = nil
+    ) -> CodexAPIClient {
+        try? writeAuth(accountID: accountID)
+        var client = baseClient
+        client.perform = { request in
+            if failResetCredits, request.url?.path == "/backend-api/wham/rate-limit-reset-credits" {
+                return (Data("{}".utf8), testHTTPResponse(status: 500, contentType: "application/json"))
+            }
+            if failUsage, request.url?.path == "/backend-api/wham/usage" {
+                return (Data("{}".utf8), testHTTPResponse(status: 500, contentType: "application/json"))
+            }
+            return try successResponse(for: request, email: email, accountID: usageAccountID)
+        }
+        return client
+    }
+
+    func writeAuth(accountID: String) throws {
+        let json = #"{"tokens":{"access_token":"not-a-jwt","account_id":"\#(accountID)"}}"#
+        try json.write(to: authURL, atomically: true, encoding: .utf8)
+    }
+
+    func writeAuthWithoutAccountID() throws {
+        let json = #"{"tokens":{"access_token":"not-a-jwt"}}"#
+        try json.write(to: authURL, atomically: true, encoding: .utf8)
+    }
+
+    func sampleSnapshot(accountID: String) throws -> CodexAccountSnapshot {
+        CodexAccountSnapshot(
+            id: try persistence.snapshotID(for: accountID),
+            displayLabel: "\(accountID)@example.com",
+            planLabel: "Pro",
+            lastChecked: Date(timeIntervalSince1970: 1_800_000_000),
+            usageWindows: [],
+            resetCount: 1,
+            resetExpiries: [Date(timeIntervalSince1970: 1_800_010_000)],
+            status: .ok,
+            errors: []
+        )
+    }
+
+    func successResponse(for request: URLRequest, email: String, accountID: String? = nil) throws -> (Data, URLResponse) {
+        switch request.url?.path {
+        case "/backend-api/wham/rate-limit-reset-credits":
+            let body = """
+            {
+              "available_count": 1,
+              "credits": [
+                {
+                  "id": "credit-full-sensitive",
+                  "status": "available",
+                  "expires_at": "2027-01-17T19:38:00Z",
+                  "title": "One free rate limit reset"
+                }
+              ]
+            }
+            """.data(using: .utf8)!
+            return (body, testHTTPResponse(status: 200, contentType: "application/json"))
+
+        case "/backend-api/wham/usage":
+            let accountLine = accountID.map { #""account_id": "\#($0)","# } ?? ""
+            let body = """
+            {
+              "email": "\(email)",
+              \(accountLine)
+              "user_id": "user_full_sensitive",
+              "plan_type": "pro",
+              "rate_limit": {
+                "primary_window": {
+                  "used_percent": 20,
+                  "limit_window_seconds": 18000,
+                  "reset_after_seconds": 3600,
+                  "reset_at": 1800003600
+                },
+                "secondary_window": {
+                  "used_percent": 40,
+                  "limit_window_seconds": 604800,
+                  "reset_after_seconds": 259200,
+                  "reset_at": 1800259200
+                }
+              }
+            }
+            """.data(using: .utf8)!
+            return (body, testHTTPResponse(status: 200, contentType: "application/json"))
+
+        default:
+            throw TestError.unexpectedEndpoint
+        }
+    }
+}
+
+private enum TestError: Error {
+    case unexpectedEndpoint
+}
+
+private func testHTTPResponse(status: Int, contentType: String) -> HTTPURLResponse {
+    HTTPURLResponse(
+        url: URL(string: "https://chatgpt.com/backend-api/wham/usage")!,
+        statusCode: status,
+        httpVersion: nil,
+        headerFields: ["Content-Type": contentType]
+    )!
+}

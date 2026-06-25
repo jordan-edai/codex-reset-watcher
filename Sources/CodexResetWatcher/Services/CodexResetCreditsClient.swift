@@ -10,38 +10,54 @@ struct CodexAPIClient: Sendable {
     }
 
     func fetchResetCredits() async throws -> ResetCreditsResponse {
-        try await fetch(ResetCreditsResponse.self, from: resetCreditsEndpoint)
+        try await fetchResetCredits(context: loadAuthContext())
     }
 
     func fetchUsage() async throws -> CodexUsageResponse {
-        try await fetch(CodexUsageResponse.self, from: usageEndpoint)
+        try await fetchUsage(context: loadAuthContext())
+    }
+
+    func fetchResetCredits(context: CodexAuthContext) async throws -> ResetCreditsResponse {
+        try await fetch(ResetCreditsResponse.self, from: resetCreditsEndpoint, context: context)
+    }
+
+    func fetchUsage(context: CodexAuthContext) async throws -> CodexUsageResponse {
+        try await fetch(CodexUsageResponse.self, from: usageEndpoint, context: context)
     }
 
     func loadAccountIdentity() throws -> CodexAccountIdentity {
+        try loadAuthContext().identity
+    }
+
+    func loadAuthContext() throws -> CodexAuthContext {
         let auth = try loadAuth()
         let idTokenPayload = jwtPayload(from: auth.tokens.idToken)
         let idTokenAuth = idTokenPayload?["https://api.openai.com/auth"] as? [String: Any]
         let accessTokenAccountId = accountId(from: auth.tokens.accessToken, fallback: auth.tokens.accountId)
         let idTokenAccountId = idTokenAuth?["chatgpt_account_id"] as? String
+        let resolvedAccountId = idTokenAccountId ?? accessTokenAccountId
 
-        return CodexAccountIdentity(
-            accountId: idTokenAccountId ?? accessTokenAccountId,
-            email: idTokenPayload?["email"] as? String,
-            name: idTokenPayload?["name"] as? String
+        return CodexAuthContext(
+            accessToken: auth.tokens.accessToken,
+            accountId: resolvedAccountId,
+            identity: CodexAccountIdentity(
+                accountId: resolvedAccountId,
+                email: idTokenPayload?["email"] as? String,
+                name: idTokenPayload?["name"] as? String
+            )
         )
     }
 
-    private func fetch<Response: Decodable>(_ responseType: Response.Type, from endpoint: URL) async throws -> Response {
-        let auth = try loadAuth()
+    private func fetch<Response: Decodable>(_ responseType: Response.Type, from endpoint: URL, context: CodexAuthContext) async throws -> Response {
         var request = URLRequest(url: endpoint)
         request.httpMethod = "GET"
         request.timeoutInterval = timeoutSeconds
-        request.setValue("Bearer \(auth.tokens.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(context.accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("Codex Desktop", forHTTPHeaderField: "originator")
         request.setValue("CODEX", forHTTPHeaderField: "OAI-Product-Sku")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        if let accountId = accountId(from: auth.tokens.accessToken, fallback: auth.tokens.accountId) {
+        if let accountId = context.accountId {
             request.setValue(accountId, forHTTPHeaderField: "ChatGPT-Account-Id")
         }
 

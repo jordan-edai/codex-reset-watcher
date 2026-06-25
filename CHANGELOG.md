@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.0 - 2026-06-25
+
+- Adds local multi-account snapshots: the active Codex account refreshes live,
+  while previously seen accounts remain available as cached last-seen records.
+- Adds a desktop sidebar with `Active account` and `Other accounts` sections,
+  plus cached-account detail views, stale labels, `Forget`, and `Clear cached`
+  controls.
+- Keeps the menu bar title active-account-only, and adds compact cached-account
+  rows in the dropdown that open the desktop window.
+- Refactors refreshes around one loaded auth context so usage and reset-credit
+  calls cannot mix account identities during a login switch.
+- Stores only derived snapshot fields under Application Support, with salted
+  hashed account keys and no bearer tokens, raw auth JSON, raw endpoint JSON,
+  full account IDs, user IDs, or reset credit IDs.
+- Adds tests for redaction, account-switch races, stale snapshots, missing auth,
+  partial endpoint failures, duplicate labels across accounts, and deletion.
+
 ## 0.2.6 - 2026-06-25
 
 - Aligns the menu bar popover and desktop window around the same app identity,

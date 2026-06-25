@@ -37,3 +37,9 @@ struct CodexAccountIdentity: Sendable, Equatable {
         return value
     }
 }
+
+struct CodexAuthContext: Sendable, Equatable {
+    let accessToken: String
+    let accountId: String?
+    let identity: CodexAccountIdentity
+}

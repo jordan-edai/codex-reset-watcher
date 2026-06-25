@@ -61,12 +61,27 @@ struct MenuBarStatusView: View {
             VStack(alignment: .leading, spacing: 8) {
                 nudgeRow
 
-                ForEach(Array(store.availableCredits.prefix(4).enumerated()), id: \.element.id) { index, credit in
+                ForEach(Array(store.availableCreditDisplays.prefix(4).enumerated()), id: \.element.id) { index, credit in
                     resetExpiryRow(index: index, credit: credit)
                 }
 
-                if store.availableCredits.isEmpty, store.creditsErrorMessage == nil {
+                if store.availableCreditDisplays.isEmpty, store.creditsErrorMessage == nil {
                     emptyResetRow
+                }
+            }
+
+            if !store.cachedSnapshots.isEmpty {
+                Divider()
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Other accounts")
+                        .font(CodexStyle.Typography.menuRowMeta.weight(.semibold))
+                        .foregroundStyle(CodexPalette.secondaryText)
+                        .padding(.horizontal, 2)
+
+                    ForEach(store.cachedSnapshots.prefix(3)) { snapshot in
+                        cachedAccountRow(snapshot)
+                    }
                 }
             }
 
@@ -158,7 +173,7 @@ struct MenuBarStatusView: View {
         .codexRow(isSelected: menuBarMetric.matches(window.kind))
     }
 
-    private func resetExpiryRow(index: Int, credit: ResetCredit) -> some View {
+    private func resetExpiryRow(index: Int, credit: ResetCreditDisplay) -> some View {
         HStack(alignment: .center, spacing: CodexStyle.Spacing.rowGap) {
             Image(systemName: "calendar.badge.clock")
                 .font(.system(size: 14, weight: .semibold))
@@ -181,6 +196,43 @@ struct MenuBarStatusView: View {
             .frame(width: CodexStyle.Size.menuDateColumn, alignment: .trailing)
         }
         .codexRow(minHeight: 54)
+    }
+
+    private func cachedAccountRow(_ snapshot: CodexAccountSnapshot) -> some View {
+        Button {
+            store.selectCachedAccount(snapshot.id)
+            openWindow(id: "main")
+            NSApp.activate(ignoringOtherApps: true)
+        } label: {
+            HStack(alignment: .center, spacing: CodexStyle.Spacing.rowGap) {
+                Image(systemName: snapshot.isStale() ? "clock.badge.exclamationmark" : "clock.arrow.circlepath")
+                    .font(.system(size: 14, weight: .semibold))
+                    .frame(width: CodexStyle.Size.menuIconColumn)
+                    .foregroundStyle(snapshot.isStale() ? CodexPalette.warningOrange : CodexPalette.secondaryText)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(snapshot.effectiveLabel)
+                        .font(CodexStyle.Typography.menuRowTitle)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+
+                    Text(snapshot.isStale() ? "Stale snapshot" : "Cached snapshot")
+                        .font(CodexStyle.Typography.menuRowMeta)
+                        .foregroundStyle(snapshot.isStale() ? CodexPalette.warningOrange : CodexPalette.secondaryText)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .layoutPriority(1)
+
+                Text(DateFormatting.timeOnly(snapshot.lastChecked))
+                    .font(CodexStyle.Typography.menuRowMeta)
+                    .foregroundStyle(CodexPalette.secondaryText)
+                    .lineLimit(1)
+                    .frame(width: CodexStyle.Size.menuDateColumn, alignment: .trailing)
+            }
+        }
+        .buttonStyle(.plain)
+        .codexRow(minHeight: 48)
     }
 
     private var nudgeRow: some View {
