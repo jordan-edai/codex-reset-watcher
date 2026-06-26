@@ -342,6 +342,25 @@ final class AccountSnapshotStoreTests: XCTestCase {
         XCTAssertEqual(reloaded.snapshots.count, 0)
         XCTAssertEqual(harness.persistence.load().count, 0)
     }
+
+    func testClearStaleSnapshotsPersistsDeletionWithoutClearingFreshCachedSnapshots() async throws {
+        let harness = try StoreHarness()
+        let fresh = try harness.sampleSnapshot(accountID: "acct_fresh")
+        let stale = try harness.sampleStaleSnapshot(accountID: "acct_stale")
+        try harness.persistence.save([fresh, stale])
+        let store = ResetCreditsStore(client: harness.baseClient, snapshotPersistence: harness.persistence)
+
+        store.selectCachedAccount(stale.id)
+        XCTAssertEqual(store.staleCachedSnapshotCount, 1)
+
+        store.clearStaleSnapshots()
+
+        XCTAssertEqual(store.snapshots.map(\.id), [fresh.id])
+        XCTAssertEqual(store.selectedAccount, .active)
+
+        let reloaded = ResetCreditsStore(client: harness.baseClient, snapshotPersistence: harness.persistence)
+        XCTAssertEqual(reloaded.snapshots.map(\.id), [fresh.id])
+    }
 }
 
 private actor RequestState {
@@ -410,6 +429,37 @@ private struct StoreHarness: @unchecked Sendable {
             planLabel: "Pro",
             lastChecked: Date(timeIntervalSince1970: 1_800_000_000),
             usageWindows: [],
+            resetCount: 1,
+            resetExpiries: [Date(timeIntervalSince1970: 1_800_010_000)],
+            status: .ok,
+            errors: []
+        )
+    }
+
+    func sampleStaleSnapshot(accountID: String) throws -> CodexAccountSnapshot {
+        let capturedAt = Date(timeIntervalSince1970: 0)
+        return CodexAccountSnapshot(
+            id: try persistence.snapshotID(for: accountID),
+            displayLabel: "\(accountID)@example.com",
+            planLabel: "Pro",
+            lastChecked: capturedAt,
+            usageWindows: [
+                AccountUsageWindowSnapshot(
+                    display: UsageLimitDisplay(
+                        id: "five-hour",
+                        kind: .fiveHour,
+                        title: "5h limit",
+                        window: UsageLimitWindow(
+                            usedPercent: 80,
+                            limitWindowSeconds: 18_000,
+                            resetAfterSeconds: 1,
+                            resetAt: 1
+                        ),
+                        limitReached: false
+                    ),
+                    capturedAt: capturedAt
+                )
+            ],
             resetCount: 1,
             resetExpiries: [Date(timeIntervalSince1970: 1_800_010_000)],
             status: .ok,

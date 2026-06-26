@@ -37,10 +37,20 @@ struct AccountSidebarView: View {
 
             if !store.cachedSnapshots.isEmpty {
                 Divider()
-                Button {
-                    store.clearCachedSnapshots()
-                } label: {
-                    Label("Clear cached", systemImage: "trash")
+                VStack(alignment: .leading, spacing: 8) {
+                    if store.staleCachedSnapshotCount > 0 {
+                        Button {
+                            store.clearStaleSnapshots()
+                        } label: {
+                            Label("Clear stale", systemImage: "clock.badge.exclamationmark")
+                        }
+                    }
+
+                    Button {
+                        store.clearCachedSnapshots()
+                    } label: {
+                        Label("Clear cached", systemImage: "trash")
+                    }
                 }
                 .buttonStyle(.plain)
                 .font(.caption.weight(.semibold))

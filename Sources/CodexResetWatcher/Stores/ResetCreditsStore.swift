@@ -58,6 +58,10 @@ final class ResetCreditsStore: ObservableObject {
             .sorted { $0.lastChecked > $1.lastChecked }
     }
 
+    var staleCachedSnapshotCount: Int {
+        cachedSnapshots.filter { $0.isStale() }.count
+    }
+
     var menuBarTitle: String {
         menuBarTitle(for: .weekly)
     }
@@ -207,7 +211,7 @@ final class ResetCreditsStore: ObservableObject {
         do {
             snapshots = try snapshotPersistence.delete(id: id, from: snapshots)
         } catch {
-            usageErrorMessage = append(message: "Could not forget cached account.", to: usageErrorMessage)
+            usageErrorMessage = append(message: "Could not forget cached snapshot.", to: usageErrorMessage)
         }
         if selectedAccount == .cached(id) {
             selectedAccount = .active
@@ -220,9 +224,29 @@ final class ResetCreditsStore: ObservableObject {
             try snapshotPersistence.save(activeOnly)
             snapshots = activeOnly
         } catch {
-            usageErrorMessage = append(message: "Could not clear cached accounts.", to: usageErrorMessage)
+            usageErrorMessage = append(message: "Could not clear cached snapshots.", to: usageErrorMessage)
         }
         selectedAccount = .active
+    }
+
+    func clearStaleSnapshots() {
+        let staleIDs = Set(cachedSnapshots.filter { $0.isStale() }.map(\.id))
+        guard !staleIDs.isEmpty else {
+            return
+        }
+
+        let next = snapshots.filter { !staleIDs.contains($0.id) }
+        do {
+            try snapshotPersistence.save(next)
+            snapshots = next
+        } catch {
+            usageErrorMessage = append(message: "Could not clear stale snapshots.", to: usageErrorMessage)
+        }
+
+        if case let .cached(id) = selectedAccount,
+           staleIDs.contains(id) {
+            selectedAccount = .active
+        }
     }
 
     func start() {
@@ -522,6 +546,7 @@ final class ResetCreditsStore: ObservableObject {
             statusDetail: activeSidebarDetail,
             lastChecked: lastChecked,
             availableCount: availableCount,
+            staleSnapshotCount: staleCachedSnapshotCount,
             credits: creditDisplays,
             usageWindows: usageWindows,
             nudge: nudge,
@@ -564,6 +589,7 @@ final class ResetCreditsStore: ObservableObject {
             statusDetail: "Last refreshed \(DateFormatting.weekdayCompact(snapshot.lastChecked))",
             lastChecked: snapshot.lastChecked,
             availableCount: snapshot.resetCount,
+            staleSnapshotCount: staleCachedSnapshotCount,
             credits: credits,
             usageWindows: windows,
             nudge: nudge,

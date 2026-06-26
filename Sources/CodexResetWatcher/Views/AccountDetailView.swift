@@ -6,6 +6,7 @@ struct AccountDetailView: View {
     let cachedAccountCount: Int
     let onRefresh: () -> Void
     let onForget: (AccountSnapshotID) -> Void
+    let onClearStale: () -> Void
     let onClearCached: () -> Void
 
     var body: some View {
@@ -163,7 +164,15 @@ struct AccountDetailView: View {
                 Button {
                     onForget(snapshotID)
                 } label: {
-                    Label("Forget", systemImage: "trash")
+                    Label(detail.isStale ? "Forget stale" : "Forget snapshot", systemImage: "trash")
+                }
+            }
+
+            if detail.staleSnapshotCount > 0 {
+                Button {
+                    onClearStale()
+                } label: {
+                    Label("Clear stale", systemImage: "clock.badge.exclamationmark")
                 }
             }
 

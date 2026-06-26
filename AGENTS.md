@@ -10,9 +10,9 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Public GitHub repo: `https://github.com/jordan-edai/codex-reset-watcher`
 - Canonical local path: `/Users/everydayai/Documents/!Codex Projects/Rate Refresher Project`
 - Compatibility path: `/Users/everydayai/Documents/Rate Refresher Project`
-- Latest shipped release: `v0.3.2`
+- Latest shipped release: `v0.3.3`
 - Check `git log --oneline --decorate -5` for the current `main` commit; this
-  note tracks the repo state through the `v0.3.2` menu window-focus hotfix release.
+  note tracks the repo state through the `v0.3.3` stale-snapshot cleanup release.
 - App bundle version is set in `script/build_and_run.sh`.
 
 ## Product Decisions
@@ -67,6 +67,9 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
   hide the account list in this compact utility window.
 - User-facing copy should call non-active saved records `cached snapshots`, not
   linked accounts or profiles. They are local last-seen records only.
+- Stale cached snapshots must be removable without clearing all cached
+  snapshots. Keep `Clear stale` available from the desktop sidebar/footer and
+  menu dropdown, and keep the selected stale row action labeled `Forget stale`.
 - Reset count should use server `available_count` when provided so malformed
   detail rows do not undercount banked resets.
 
