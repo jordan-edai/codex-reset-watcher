@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.3 - 2026-06-26
+
+- Adds an explicit `Clear stale` action in the desktop sidebar, desktop footer,
+  and menu dropdown so stale cached snapshots can be removed without clearing
+  every cached snapshot.
+- Renames the selected stale snapshot action to `Forget stale` so removing a
+  single stale record is easier to discover.
+- Adds a regression test for stale-snapshot cleanup persistence.
+
 ## 0.3.2 - 2026-06-25
 
 - Fixes a menu-dropdown regression where clicking cached accounts could create

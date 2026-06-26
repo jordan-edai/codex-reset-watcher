@@ -71,6 +71,9 @@ Cached snapshots are last-seen records, not live dashboards. They are labeled
 `Cached snapshot` or `Stale snapshot`, and they refresh only when that account
 becomes the active Codex Desktop login again.
 
+Use `Forget stale` to remove a selected stale snapshot, or `Clear stale` to
+remove stale snapshots without clearing every cached record.
+
 Snapshots are stored locally at:
 
 ```text

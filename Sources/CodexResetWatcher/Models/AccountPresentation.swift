@@ -21,6 +21,7 @@ struct AccountDetailState: Identifiable {
     let statusDetail: String
     let lastChecked: Date?
     let availableCount: Int
+    let staleSnapshotCount: Int
     let credits: [ResetCreditDisplay]
     let usageWindows: [UsageLimitDisplay]
     let nudge: UsageNudge

@@ -83,6 +83,10 @@ struct MenuBarStatusView: View {
                     ForEach(store.cachedSnapshots.prefix(3)) { snapshot in
                         cachedAccountRow(snapshot)
                     }
+
+                    if store.staleCachedSnapshotCount > 0 {
+                        clearStaleRow
+                    }
                 }
             }
 
@@ -232,6 +236,28 @@ struct MenuBarStatusView: View {
         }
         .buttonStyle(.plain)
         .codexRow(minHeight: 48)
+    }
+
+    private var clearStaleRow: some View {
+        Button {
+            store.clearStaleSnapshots()
+        } label: {
+            HStack(alignment: .center, spacing: CodexStyle.Spacing.rowGap) {
+                Image(systemName: "clock.badge.exclamationmark")
+                    .font(.system(size: 14, weight: .semibold))
+                    .frame(width: CodexStyle.Size.menuIconColumn)
+                    .foregroundStyle(CodexPalette.warningOrange)
+
+                Text("Clear stale snapshots")
+                    .font(CodexStyle.Typography.menuRowTitle)
+                    .foregroundStyle(CodexPalette.primaryText)
+                    .lineLimit(1)
+
+                Spacer()
+            }
+        }
+        .buttonStyle(.plain)
+        .codexRow(minHeight: 44)
     }
 
     private var nudgeRow: some View {

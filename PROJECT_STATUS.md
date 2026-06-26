@@ -17,13 +17,13 @@ https://github.com/jordan-edai/codex-reset-watcher
 Current release:
 
 ```text
-v0.3.2
+v0.3.3
 ```
 
 Latest tracked release state:
 
 ```text
-v0.3.2 menu window-focus hotfix
+v0.3.3 stale-snapshot cleanup
 ```
 
 ## What Is Shipped
@@ -57,12 +57,15 @@ v0.3.2 menu window-focus hotfix
 - `v0.3.2`: fixed cached-snapshot menu rows creating duplicate main windows,
   replaced the fragile native split-view shell with a fixed two-pane layout, and
   stopped implying local cached records were linked/live accounts.
+- `v0.3.3`: added visible stale-snapshot cleanup controls in the desktop sidebar,
+  desktop footer, and menu dropdown, plus clearer `Forget stale` copy for single
+  stale snapshot removal.
 
 ## Current GitHub State
 
 - Repo is public.
 - Repo description: `Local-first macOS menu bar app for Codex usage limits and reset credits.`
-- Latest release is `v0.3.2`.
+- Latest release is `v0.3.3`.
 - `v0.2.0` release asset cleanup was completed; the duplicate generic
   `Codex.Reset.Watcher.zip` was removed and the versioned zip was kept.
 - PR #1 shipped usage limits and reset nudges.
@@ -95,6 +98,8 @@ v0.3.2 menu window-focus hotfix
   behavior is manually tested in the packaged menu bar app.
 - User-facing copy should call non-active saved records `cached snapshots`, not
   linked accounts or profiles. They are local last-seen records only.
+- Stale snapshots must have an obvious cleanup path. Preserve `Clear stale`
+  controls and the `Forget stale` single-record action when changing this UI.
 - Persisted snapshots must remain derived-only and must not include tokens, raw
   auth, raw API responses, full account IDs, user IDs, or reset credit IDs.
 - Use [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) as the future-maintainer guardrail

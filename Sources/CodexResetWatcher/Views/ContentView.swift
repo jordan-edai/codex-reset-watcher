@@ -21,6 +21,9 @@ struct ContentView: View {
                 onForget: { id in
                     store.forgetSnapshot(id: id)
                 },
+                onClearStale: {
+                    store.clearStaleSnapshots()
+                },
                 onClearCached: {
                     store.clearCachedSnapshots()
                 }
