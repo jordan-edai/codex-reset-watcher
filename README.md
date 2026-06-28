@@ -2,7 +2,7 @@
 
 <img src="Assets/AppIcon.png" width="128" alt="Codex Reset Watcher icon">
 
-Unofficial macOS utility for checking Codex rate-limit windows and banked reset credits.
+Unofficial desktop utility for checking Codex rate-limit windows and banked reset credits.
 
 It reads your existing local Codex Desktop login from `~/.codex/auth.json`, calls the same internal Codex Desktop endpoints used by the app, and shows:
 
@@ -21,8 +21,16 @@ Codex Reset Watcher is read-only. It does not redeem resets, reset usage, modify
 
 ## Requirements
 
+### macOS
+
 - macOS 14 or newer
 - Codex Desktop installed and signed in
+
+### Windows
+
+- Windows 10 or newer
+- Codex Desktop installed and signed in
+- .NET Framework 4.8 runtime
 
 No API key is required.
 
@@ -37,6 +45,8 @@ If macOS warns that the app is from an unidentified developer, right-click the a
 
 ## Build From Source
 
+### macOS
+
 ```bash
 git clone https://github.com/jordan-edai/codex-reset-watcher.git
 cd codex-reset-watcher
@@ -45,6 +55,19 @@ open "dist/Codex Reset Watcher.app"
 ```
 
 The script uses SwiftPM and writes SwiftPM scratch files under `/tmp/codex-reset-watcher-build` to avoid file-provider issues in synced folders.
+
+### Windows
+
+```powershell
+git clone https://github.com/jordan-edai/codex-reset-watcher.git
+cd codex-reset-watcher
+powershell -ExecutionPolicy Bypass -File .\Windows\build.ps1 -Configuration Release -Clean -Verify
+& ".\dist\windows\Codex Reset Watcher Windows\CodexResetWatcher.Windows.exe"
+```
+
+The Windows version is a native WinForms tray app. It uses the Windows .NET
+Framework compiler already present on standard Windows installations and does
+not require a .NET SDK. See [Windows/README.md](Windows/README.md).
 
 ## Nudge Logic
 
@@ -78,6 +101,12 @@ Snapshots are stored locally at:
 
 ```text
 ~/Library/Application Support/Codex Reset Watcher/account-snapshots.json
+```
+
+On Windows, snapshots are stored locally at:
+
+```text
+%APPDATA%\Codex Reset Watcher\account-snapshots.json
 ```
 
 The app stores derived fields such as display label, plan label, last checked
