@@ -49,6 +49,8 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
   `id_token` email/name, or a short account-id fallback.
 - Multi-account support is snapshot-based. The active account refreshes live;
   other accounts are cached last-seen snapshots only.
+- Do not describe cached snapshots as simultaneous live accounts. They are
+  local records from previous active Codex Desktop logins.
 - Snapshot persistence must stay minimized and derived-only. Do not store bearer
   tokens, refresh tokens, ID tokens, raw auth JSON, raw endpoint JSON, full
   account IDs, user IDs, cookies, API keys, or reset credit IDs.
@@ -70,6 +72,9 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Stale cached snapshots must be removable without clearing all cached
   snapshots. Keep `Clear stale` available from the desktop sidebar/footer and
   menu dropdown, and keep the selected stale row action labeled `Forget stale`.
+- Before claiming a two-real-account flow is verified on a user machine, manual
+  QA must include signing into a second real Codex Desktop account and checking
+  that the previous login appears only as a cached snapshot.
 - Reset count should use server `available_count` when provided so malformed
   detail rows do not undercount banked resets.
 
