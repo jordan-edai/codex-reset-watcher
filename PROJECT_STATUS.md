@@ -87,6 +87,8 @@ v0.3.3 stale-snapshot cleanup
   before adding one-off colors, radii, spacing, or panel styles.
 - Multi-account support is snapshot-based. The active Codex account refreshes
   live; other accounts are cached last-seen records only.
+- Multi-account support is not simultaneous multi-login. A cached snapshot is a
+  local last-seen record, not a live dashboard for that account.
 - Use the local Codex Desktop auth-context account ID as the snapshot key when
   it exists. Treat the usage response account ID as a fallback key only; it may
   be a different namespace and should not break the active account by itself.
@@ -144,6 +146,9 @@ file under Application Support.
 - The distributed app is ad-hoc signed unless a future maintainer publishes a
   Developer ID signed and notarized build.
 - Usage fields may vary by plan, account type, region, or Codex app version.
+- Multi-account logic is covered by unit tests and local snapshot QA, but any
+  claim about a specific two-real-account login flow should be manually
+  rechecked by signing into the second Codex Desktop account on that machine.
 
 ## Local Workspace Notes
 

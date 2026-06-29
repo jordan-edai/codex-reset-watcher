@@ -60,7 +60,8 @@ Reset-credit rows also change urgency as expiry gets close: available, this week
 ## Multi-Account Snapshots
 
 The active Codex account is always the one currently signed into Codex Desktop.
-Codex Reset Watcher does not switch accounts for you.
+Codex Reset Watcher does not switch accounts for you, and it does not show
+multiple accounts as simultaneous live dashboards.
 
 After a successful refresh, the app saves a minimized local snapshot for that
 account. If you later sign into a different Codex account, the current account
@@ -73,6 +74,13 @@ becomes the active Codex Desktop login again.
 
 Use `Forget stale` to remove a selected stale snapshot, or `Clear stale` to
 remove stale snapshots without clearing every cached record.
+
+The snapshot model is covered by unit tests for account-switch races,
+same-label accounts with different account IDs, stale cleanup, invalid auth,
+partial endpoint failures, corrupt snapshot files, and sensitive-field
+redaction. Manual QA should still include signing into a second real Codex
+Desktop account before claiming a specific cross-account login flow works in a
+new environment.
 
 Snapshots are stored locally at:
 

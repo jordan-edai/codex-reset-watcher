@@ -10,6 +10,7 @@ Codex Reset Watcher uses a conservative snapshot model:
   login.
 - Non-active saved records are cached last-seen snapshots only.
 - The app never switches Codex accounts.
+- The app does not present multiple accounts as simultaneous live dashboards.
 - Refreshing another account requires signing into that account in Codex
   Desktop.
 - Cached snapshots must be labeled as cached or stale, with the last refreshed
@@ -97,5 +98,13 @@ Required tests:
 - stale labels
 - invalid auth behavior
 - snapshot deletion
+- stale-only cleanup that preserves fresh cached snapshots
 - persistence redaction
 - corrupt or old schema files
+
+Manual QA boundary:
+
+- Before claiming a specific two-real-account workflow works on a new machine,
+  sign out of Codex Desktop, sign into another real Codex account, refresh, and
+  confirm the previous account appears only as a cached snapshot while the new
+  login is the only active live account.
