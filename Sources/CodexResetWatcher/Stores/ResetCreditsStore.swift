@@ -380,10 +380,12 @@ final class ResetCreditsStore: ObservableObject {
             availableCount = response.availableCount
             creditsErrorMessage = nil
         case let .failure(error):
+            credits = []
+            availableCount = usageResponse?.rateLimitResetCredits?.availableCount ?? 0
             creditsErrorMessage = refreshErrorMessage(
                 area: "reset stash",
                 error: error,
-                hasPriorData: !credits.isEmpty
+                hasPriorData: false
             )
         }
 
@@ -432,7 +434,7 @@ final class ResetCreditsStore: ObservableObject {
         let usageResponse = try? usageResult.get()
         let hasAnySuccess = creditsResponse != nil || usageResponse != nil
 
-        guard hasAnySuccess || existing != nil else {
+        guard hasAnySuccess else {
             return
         }
 
@@ -483,8 +485,10 @@ final class ResetCreditsStore: ObservableObject {
                 .filter(\.isAvailable)
                 .compactMap { DateFormatting.parse($0.expiresAt) }
                 .sorted()
-        } ?? existing?.resetExpiries ?? []
-        let resetCount = creditsResponse?.availableCount ?? existing?.resetCount ?? 0
+        } ?? []
+        let resetCount = creditsResponse?.availableCount
+            ?? usageResponse?.rateLimitResetCredits?.availableCount
+            ?? 0
 
         return CodexAccountSnapshot(
             id: id,
@@ -504,7 +508,14 @@ final class ResetCreditsStore: ObservableObject {
         guard let latest = try? client.loadAuthContext() else {
             return .changed(nil)
         }
-        if latest.accessToken != context.accessToken || latest.accountId != context.accountId {
+
+        let contextAccountID = normalizedAccountID(context.accountId)
+        let latestAccountID = normalizedAccountID(latest.accountId)
+        if contextAccountID != nil || latestAccountID != nil {
+            return contextAccountID == latestAccountID ? .unchanged : .changed(latest)
+        }
+
+        if latest.accessToken != context.accessToken {
             return .changed(latest)
         }
         return .unchanged
@@ -679,7 +690,35 @@ final class ResetCreditsStore: ObservableObject {
 
     private func refreshErrorMessage(area: String, error: Error, hasPriorData: Bool) -> String {
         let prefix = hasPriorData ? "Could not refresh \(area); showing the last known numbers." : "Could not load \(area)."
-        return "\(prefix) \(error.localizedDescription)"
+        return "\(prefix) \(liveRefreshErrorDetail(for: error))"
+    }
+
+    private func liveRefreshErrorDetail(for error: Error) -> String {
+        guard let error = error as? CodexAPIError else {
+            return "The refresh failed."
+        }
+
+        switch error {
+        case .missingAuth:
+            return "Open Codex Desktop and sign in first."
+        case .invalidAuth:
+            return "Open Codex Desktop and sign in again."
+        case .invalidResponse:
+            return "Codex returned an invalid response."
+        case .emptyResponse:
+            return "Codex returned an empty response."
+        case .unexpectedContentType:
+            return "Codex returned a non-JSON response. Open Codex Desktop and sign in again."
+        case .rateLimited:
+            return "Codex rate-limited this check. Try again later."
+        case let .httpStatus(status):
+            if status == 401 || status == 403 {
+                return "Codex rejected the saved login. Open Codex Desktop and sign in again."
+            }
+            return "Codex returned an HTTP error."
+        case .untrustedEndpoint:
+            return "Codex endpoint is not trusted."
+        }
     }
 
     private func snapshotErrorCode(for error: Error) -> AccountSnapshotErrorCode {
@@ -705,6 +744,8 @@ final class ResetCreditsStore: ObservableObject {
                     return .forbidden
                 }
                 return .httpStatus
+            case .untrustedEndpoint:
+                return .invalidResponse
             }
         }
         return .decoding
@@ -750,10 +791,16 @@ final class ResetCreditsStore: ObservableObject {
 
     private func display(for window: UsageLimitWindow, fallbackID: String, limitReached: Bool) -> UsageLimitDisplay {
         let seconds = window.limitWindowSeconds ?? 0
-        if fallbackID == "primary" || (14_400...21_600).contains(seconds) {
+        if (14_400...21_600).contains(seconds) {
             return UsageLimitDisplay(id: "five-hour", kind: .fiveHour, title: "5h limit", window: window, limitReached: limitReached)
         }
-        if fallbackID == "secondary" || (518_400...864_000).contains(seconds) {
+        if (518_400...864_000).contains(seconds) {
+            return UsageLimitDisplay(id: "weekly", kind: .weekly, title: "Weekly limit", window: window, limitReached: limitReached)
+        }
+        if fallbackID == "primary" {
+            return UsageLimitDisplay(id: "five-hour", kind: .fiveHour, title: "5h limit", window: window, limitReached: limitReached)
+        }
+        if fallbackID == "secondary" {
             return UsageLimitDisplay(id: "weekly", kind: .weekly, title: "Weekly limit", window: window, limitReached: limitReached)
         }
         return UsageLimitDisplay(id: fallbackID, kind: .generic, title: DateFormatting.windowTitle(seconds: seconds), window: window, limitReached: limitReached)

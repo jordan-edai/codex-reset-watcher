@@ -5,3 +5,7 @@
 /Assets/AppIcon.iconset/
 *.xcuserdata
 *.swp
+
+# Local Codex thread repair/recovery artifacts.
+codex-thread-folder-repair/
+codex-thread-recovery-*

@@ -66,7 +66,7 @@ struct UsageNudge: Sendable {
                 tier: .waitFiveHour,
                 title: "Let the 5h tank refill",
                 message: "Weekly room is still decent. Let the short window catch up before spending a reset.",
-                detail: "5h resets in \(DateFormatting.duration(seconds: fiveHourReset))"
+                detail: resetDetail(prefix: "5h", seconds: fiveHourReset)
             )
         }
 
@@ -80,7 +80,7 @@ struct UsageNudge: Sendable {
                 tier: .deadline,
                 title: "Deadline call",
                 message: "Weekly runway looks great. If this is deadline work, spend a reset. Otherwise let the 5h clock do its thing.",
-                detail: "5h resets in \(DateFormatting.duration(seconds: fiveHourReset))"
+                detail: resetDetail(prefix: "5h", seconds: fiveHourReset)
             )
         }
 
@@ -93,7 +93,7 @@ struct UsageNudge: Sendable {
                 tier: .deadline,
                 title: "Deadline override",
                 message: "The short window is hours away. Big deadline? Use a reset. Otherwise coast until the 5h refill.",
-                detail: "5h resets in \(DateFormatting.duration(seconds: fiveHourReset))"
+                detail: resetDetail(prefix: "5h", seconds: fiveHourReset)
             )
         }
 
@@ -122,7 +122,7 @@ struct UsageNudge: Sendable {
                 tier: .useIfBlocked,
                 title: "Green light, with brakes",
                 message: "If real work hits the wall, spending a reset makes sense. Do not use it just to tidy up the meter.",
-                detail: "\(DateFormatting.duration(seconds: weeklyResetSeconds)) to weekly reset"
+                detail: resetDistanceDetail(seconds: weeklyResetSeconds, suffix: "to weekly reset")
             )
         }
 
@@ -140,7 +140,7 @@ struct UsageNudge: Sendable {
                 tier: .hold,
                 title: "Pocket the reset",
                 message: "Capacity is not tight enough this close to weekly refresh. Keep the reset in your back pocket.",
-                detail: "\(DateFormatting.duration(seconds: weeklyResetSeconds)) away"
+                detail: resetDistanceDetail(seconds: weeklyResetSeconds, suffix: "away")
             )
         }
 
@@ -150,5 +150,17 @@ struct UsageNudge: Sendable {
             message: "Keep working. Re-check before a big run.",
             detail: "\(weeklyRemaining)% weekly left"
         )
+    }
+
+    @MainActor
+    private static func resetDetail(prefix: String, seconds: Int) -> String {
+        let duration = DateFormatting.duration(seconds: seconds)
+        return duration == "now" ? "\(prefix) resets now" : "\(prefix) resets in \(duration)"
+    }
+
+    @MainActor
+    private static func resetDistanceDetail(seconds: Int, suffix: String) -> String {
+        let duration = DateFormatting.duration(seconds: seconds)
+        return duration == "now" ? "Weekly reset now" : "\(duration) \(suffix)"
     }
 }

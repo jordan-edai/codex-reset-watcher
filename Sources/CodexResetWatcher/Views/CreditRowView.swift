@@ -6,15 +6,17 @@ struct CreditRowView: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: CodexStyle.Spacing.panel) {
-            Image(systemName: credit.isAvailable ? "checkmark.seal.fill" : "clock.badge.xmark")
-                .font(.title3)
-                .foregroundStyle(urgencyTint)
-                .frame(width: 28)
+            CodexIconBadge(
+                systemName: iconName,
+                tone: tone,
+                size: CodexStyle.Size.iconBadge,
+                symbolSize: CodexStyle.Icon.content
+            )
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
                     Text(ordinal.map { "Reset \($0) expires:" } ?? "Reset expires:")
-                        .font(.subheadline.weight(.semibold))
+                        .font(CodexStyle.Typography.caption)
                         .foregroundStyle(CodexPalette.secondaryText)
                     Text(DateFormatting.weekdayCompact(credit.expiresAt))
                         .font(CodexStyle.Typography.cardMetric)
@@ -24,30 +26,25 @@ struct CreditRowView: View {
 
                 HStack(spacing: 6) {
                     Text(credit.title ?? "Codex reset credit")
-                        .font(.subheadline)
+                        .font(CodexStyle.Typography.caption)
                         .foregroundStyle(CodexPalette.secondaryText)
                         .lineLimit(1)
                 }
 
                 if let hint = urgency.hint {
                     Text(hint)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(urgencyTint)
+                        .font(CodexStyle.Typography.caption)
+                        .foregroundStyle(tone.foreground)
                         .lineLimit(1)
                 }
             }
 
             Spacer()
 
-            Text(urgency.badge)
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(badgeForeground)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(urgencyTint, in: RoundedRectangle(cornerRadius: CodexStyle.Radius.pill, style: .continuous))
+            CodexStatusBadge(text: urgency.badge, tone: tone, filled: usesFilledBadge)
         }
         .padding(CodexStyle.Spacing.panel)
-        .codexPanel(background: rowBackground, border: urgencyTint.opacity(borderOpacity))
+        .codexPanel(background: rowBackground, border: tone.border, shadow: false)
     }
 
     private var urgency: ResetExpiryUrgency {
@@ -57,51 +54,85 @@ struct CreditRowView: View {
         )
     }
 
-    private var urgencyTint: Color {
+    private var iconName: String {
         switch urgency.level {
         case .normal:
-            return CodexPalette.availableGreen
-        case .approaching:
-            return CodexPalette.attentionAmber
-        case .soon:
-            return CodexPalette.warningOrange
+            return "calendar.badge.clock"
+        case .approaching, .soon:
+            return "clock.badge.exclamationmark"
         case .urgent, .expired:
-            return CodexPalette.urgentRed
+            return "exclamationmark.octagon.fill"
+        case .inactive:
+            return "clock.badge.xmark"
+        case .unknown:
+            return "questionmark.circle"
+        }
+    }
+
+    private var tone: CodexTone {
+        CodexTone.resetUrgency(urgency)
+    }
+
+    private var usesFilledBadge: Bool {
+        switch urgency.level {
+        case .normal:
+            return false
+        case .approaching:
+            return false
+        case .soon:
+            return true
+        case .urgent, .expired:
+            return true
         case .inactive, .unknown:
-            return CodexPalette.secondaryText
+            return false
         }
     }
 
     private var rowBackground: Color {
         switch urgency.level {
         case .normal:
-            return CodexPalette.cardBackground
+            return CodexPalette.elevatedBackground
         case .approaching, .soon, .urgent, .expired:
-            return urgencyTint.opacity(0.08)
+            return tone.background
         case .inactive, .unknown:
-            return CodexPalette.cardBackground
+            return CodexPalette.elevatedBackground
         }
     }
+}
 
-    private var borderOpacity: Double {
-        switch urgency.level {
-        case .normal, .inactive, .unknown:
-            return 0.18
-        case .approaching:
-            return 0.44
-        case .soon, .urgent, .expired:
-            return 0.56
-        }
-    }
+struct MissingResetExpiryRowView: View {
+    let ordinal: Int
 
-    private var badgeForeground: Color {
-        switch urgency.level {
-        case .approaching:
-            return .black.opacity(0.82)
-        case .normal, .soon, .urgent, .expired:
-            return .white
-        case .inactive, .unknown:
-            return .white
+    var body: some View {
+        HStack(alignment: .center, spacing: CodexStyle.Spacing.panel) {
+            CodexIconBadge(
+                systemName: "calendar.badge.questionmark",
+                tone: .muted,
+                size: CodexStyle.Size.iconBadge,
+                symbolSize: CodexStyle.Icon.content
+            )
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(alignment: .firstTextBaseline, spacing: 7) {
+                    Text("Reset \(ordinal) expires:")
+                        .font(CodexStyle.Typography.caption)
+                        .foregroundStyle(CodexPalette.secondaryText)
+                    Text("Expiry unavailable")
+                        .font(CodexStyle.Typography.cardTitle)
+                        .foregroundStyle(CodexPalette.primaryText)
+                }
+
+                Text("Codex reported this reset, but did not return an expiry date.")
+                    .font(CodexStyle.Typography.caption)
+                    .foregroundStyle(CodexPalette.secondaryText)
+                    .lineLimit(2)
+            }
+
+            Spacer()
+
+            CodexStatusBadge(text: "Check again", tone: .muted)
         }
+        .padding(CodexStyle.Spacing.panel)
+        .codexPanel(background: CodexPalette.elevatedBackground, border: CodexPalette.softBorder, shadow: false)
     }
 }

@@ -189,6 +189,27 @@ final class AccountSnapshotStoreTests: XCTestCase {
         XCTAssertTrue(store.errorMessages.joined(separator: " ").contains("account changed"))
     }
 
+    func testTokenRotationWithSameStableAccountDoesNotLookLikeAccountSwitch() async throws {
+        let harness = try StoreHarness()
+        try harness.writeAuth(accountID: "acct_a", accessToken: "token-before")
+        let state = RequestState()
+        var client = harness.baseClient
+        client.perform = { request in
+            _ = await state.record()
+            try harness.writeAuth(accountID: "acct_a", accessToken: "token-after")
+            return try harness.successResponse(for: request, email: "builder@example.com")
+        }
+        let store = ResetCreditsStore(client: client, snapshotPersistence: harness.persistence)
+
+        await store.refresh()
+
+        XCTAssertEqual(store.snapshots.count, 1)
+        XCTAssertEqual(store.cachedSnapshots.count, 0)
+        XCTAssertEqual(store.availableCount, 1)
+        XCTAssertEqual(store.usageWindows.count, 2)
+        XCTAssertEqual(store.errorMessages, [])
+    }
+
     func testAccountSwitchRaceClearsPriorActiveData() async throws {
         let harness = try StoreHarness()
         try harness.writeAuth(accountID: "acct_a")
@@ -306,7 +327,33 @@ final class AccountSnapshotStoreTests: XCTestCase {
         XCTAssertEqual(store.cachedSnapshots.count, 1)
         XCTAssertEqual(store.usageWindows.count, 0)
         XCTAssertEqual(store.availableCount, 0)
-        XCTAssertTrue(store.errorMessages.joined(separator: " ").contains("active account"))
+        let message = store.errorMessages.joined(separator: " ")
+        XCTAssertTrue(message.contains("active account"))
+        XCTAssertFalse(message.contains(harness.authURL.path))
+        XCTAssertFalse(message.contains("auth.json"))
+    }
+
+    func testLiveRefreshErrorSanitizesUnexpectedContentType() async throws {
+        let harness = try StoreHarness()
+        try harness.writeAuth(accountID: "acct_a")
+        var client = harness.baseClient
+        client.perform = { request in
+            if request.url?.path == "/backend-api/wham/usage" {
+                return (
+                    Data("<html></html>".utf8),
+                    testHTTPResponse(status: 200, contentType: "text/html; charset=utf-8")
+                )
+            }
+            return try harness.successResponse(for: request, email: "builder@example.com")
+        }
+        let store = ResetCreditsStore(client: client, snapshotPersistence: harness.persistence)
+
+        await store.refresh()
+
+        let message = store.errorMessages.joined(separator: " ")
+        XCTAssertTrue(message.contains("non-JSON"))
+        XCTAssertFalse(message.contains("text/html"))
+        XCTAssertFalse(message.contains("charset"))
     }
 
     func testPartialEndpointFailurePersistsSuccessfulUsageWithCoarseError() async throws {
@@ -323,6 +370,87 @@ final class AccountSnapshotStoreTests: XCTestCase {
         XCTAssertTrue(snapshot.errors.contains(.resetCreditsFailed))
         XCTAssertEqual(snapshot.usageWindows.count, 2)
         XCTAssertEqual(snapshot.resetCount, 0)
+    }
+
+    func testResetCreditFailureDoesNotCarryPriorExpiryRowsForward() async throws {
+        let harness = try StoreHarness()
+        try harness.writeAuth(accountID: "acct_a")
+        let state = RequestState()
+        var client = harness.baseClient
+        client.perform = { request in
+            let count = await state.record()
+            if count > 2, request.url?.path == "/backend-api/wham/rate-limit-reset-credits" {
+                return (Data("{}".utf8), testHTTPResponse(status: 500, contentType: "application/json"))
+            }
+            if count > 2, request.url?.path == "/backend-api/wham/usage" {
+                let body = """
+                {
+                  "email": "builder@example.com",
+                  "plan_type": "pro",
+                  "rate_limit_reset_credits": {
+                    "available_count": 2
+                  },
+                  "rate_limit": {
+                    "primary_window": {
+                      "used_percent": 20,
+                      "limit_window_seconds": 18000,
+                      "reset_after_seconds": 3600,
+                      "reset_at": 1800003600
+                    },
+                    "secondary_window": {
+                      "used_percent": 40,
+                      "limit_window_seconds": 604800,
+                      "reset_after_seconds": 259200,
+                      "reset_at": 1800259200
+                    }
+                  }
+                }
+                """.data(using: .utf8)!
+                return (body, testHTTPResponse(status: 200, contentType: "application/json"))
+            }
+            return try harness.successResponse(for: request, email: "builder@example.com")
+        }
+        let store = ResetCreditsStore(client: client, snapshotPersistence: harness.persistence)
+
+        await store.refresh()
+        XCTAssertEqual(store.availableCreditDisplays.count, 1)
+
+        await store.refresh()
+
+        let snapshot = try XCTUnwrap(store.snapshots.first)
+        XCTAssertEqual(store.availableCreditDisplays.count, 0)
+        XCTAssertEqual(store.availableCount, 2)
+        XCTAssertEqual(snapshot.resetExpiries, [])
+        XCTAssertEqual(snapshot.resetCount, 2)
+        XCTAssertTrue(snapshot.errors.contains(.resetCreditsFailed))
+        XCTAssertFalse(store.errorMessages.joined(separator: " ").contains("last known"))
+    }
+
+    func testBothEndpointFailuresPreserveExistingSnapshotWithoutRewriting() async throws {
+        let harness = try StoreHarness()
+        let existing = try harness.sampleSnapshot(accountID: "acct_a")
+        try harness.persistence.save([existing])
+        try harness.writeAuth(accountID: "acct_a")
+        var client = harness.baseClient
+        client.perform = { request in
+            switch request.url?.path {
+            case "/backend-api/wham/rate-limit-reset-credits", "/backend-api/wham/usage":
+                return (Data("{}".utf8), testHTTPResponse(status: 500, contentType: "application/json"))
+            default:
+                throw TestError.unexpectedEndpoint
+            }
+        }
+        let store = ResetCreditsStore(client: client, snapshotPersistence: harness.persistence)
+
+        await store.refresh()
+
+        let persisted = try XCTUnwrap(harness.persistence.load().first)
+        XCTAssertEqual(persisted.lastChecked, existing.lastChecked)
+        XCTAssertEqual(persisted.resetCount, existing.resetCount)
+        XCTAssertEqual(persisted.resetExpiries, existing.resetExpiries)
+        XCTAssertEqual(persisted.usageWindows, existing.usageWindows)
+        XCTAssertEqual(store.availableCount, 0)
+        XCTAssertTrue(store.usageWindows.isEmpty)
     }
 
     func testForgetAndClearCachedAccountsPersistDeletion() async throws {
@@ -412,8 +540,8 @@ private struct StoreHarness: @unchecked Sendable {
         return client
     }
 
-    func writeAuth(accountID: String) throws {
-        let json = #"{"tokens":{"access_token":"not-a-jwt","account_id":"\#(accountID)"}}"#
+    func writeAuth(accountID: String, accessToken: String = "not-a-jwt") throws {
+        let json = #"{"tokens":{"access_token":"\#(accessToken)","account_id":"\#(accountID)"}}"#
         try json.write(to: authURL, atomically: true, encoding: .utf8)
     }
 

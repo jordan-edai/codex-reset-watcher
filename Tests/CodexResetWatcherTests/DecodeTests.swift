@@ -35,6 +35,73 @@ final class DecodeTests: XCTestCase {
         XCTAssertTrue(response.credits.first?.isAvailable == true)
     }
 
+    func testNumericFieldsDecodeFromStringsAndDoubles() throws {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+
+        let usageJSON = """
+        {
+          "rate_limit": {
+            "primary_window": {
+              "used_percent": "71",
+              "limit_window_seconds": 18000.0,
+              "reset_after_seconds": "3600",
+              "reset_at": "1800000000000"
+            }
+          },
+          "rate_limit_reset_credits": {
+            "available_count": 2.0
+          }
+        }
+        """.data(using: .utf8)!
+
+        let usage = try decoder.decode(CodexUsageResponse.self, from: usageJSON)
+        let window = try XCTUnwrap(usage.rateLimit?.primaryWindow)
+        XCTAssertEqual(window.usedPercent, 71)
+        XCTAssertEqual(window.limitWindowSeconds, 18_000)
+        XCTAssertEqual(window.resetAfterSeconds, 3_600)
+        XCTAssertEqual(window.resetAt, 1_800_000_000_000)
+        XCTAssertEqual(usage.rateLimitResetCredits?.availableCount, 2)
+
+        let snakeCaseCredits = #"{"available_count":"3","credits":[]}"#.data(using: .utf8)!
+        let camelCaseCredits = #"{"availableCount":4.0,"credits":[]}"#.data(using: .utf8)!
+
+        XCTAssertEqual(try decoder.decode(ResetCreditsResponse.self, from: snakeCaseCredits).availableCount, 3)
+        XCTAssertEqual(try decoder.decode(ResetCreditsResponse.self, from: camelCaseCredits).availableCount, 4)
+    }
+
+    func testOutOfRangeAndFractionalFlexibleIntegersDecodeAsMissing() throws {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+
+        let usageJSON = """
+        {
+          "rate_limit": {
+            "primary_window": {
+              "used_percent": "1e100",
+              "limit_window_seconds": 2.5,
+              "reset_after_seconds": 9223372036854775808,
+              "reset_at": "not-a-number"
+            }
+          },
+          "rate_limit_reset_credits": {
+            "available_count": 1e100
+          }
+        }
+        """.data(using: .utf8)!
+
+        let usage = try decoder.decode(CodexUsageResponse.self, from: usageJSON)
+        let window = try XCTUnwrap(usage.rateLimit?.primaryWindow)
+        XCTAssertNil(window.usedPercent)
+        XCTAssertNil(window.limitWindowSeconds)
+        XCTAssertNil(window.resetAfterSeconds)
+        XCTAssertNil(window.resetAt)
+        XCTAssertNil(usage.rateLimitResetCredits?.availableCount)
+
+        let creditsJSON = #"{"available_count":2.5,"credits":[]}"#.data(using: .utf8)!
+        XCTAssertEqual(try decoder.decode(ResetCreditsResponse.self, from: creditsJSON).availableCount, 0)
+    }
+
     func testUsageResetAtAcceptsSecondsAndMilliseconds() {
         let seconds = UsageLimitWindow(
             usedPercent: 10,
@@ -83,6 +150,12 @@ final class DecodeTests: XCTestCase {
         XCTAssertEqual(DateFormatting.timeOnly(components.date), "7:38 PM")
     }
 
+    @MainActor
+    func testZeroDurationDisplaysAsNow() {
+        XCTAssertEqual(DateFormatting.duration(seconds: 0), "now")
+        XCTAssertEqual(DateFormatting.duration(seconds: -30), "now")
+    }
+
     func testBase64URLDecodesUnpaddedPayload() {
         let decoded = Data(base64URLString: "eyJhY2NvdW50IjoiYWNjdF8xMjMifQ")
 
@@ -112,6 +185,53 @@ final class CodexAPIClientTests: XCTestCase {
         let response = try await client.fetchUsage()
 
         XCTAssertEqual(response.planType, "pro")
+    }
+
+    func testUntrustedEndpointFailsBeforeSendingRequest() async throws {
+        var client = try makeClient { _ in
+            throw TestError.unexpectedEndpoint
+        }
+        client.usageEndpoint = URL(string: "https://example.com/backend-api/wham/usage")!
+
+        do {
+            _ = try await client.fetchUsage()
+            XCTFail("Expected untrustedEndpoint")
+        } catch CodexAPIError.untrustedEndpoint {
+        } catch {
+            XCTFail("Expected untrustedEndpoint, got \(error)")
+        }
+    }
+
+    func testTrustedEndpointRequiresExactCodexWhamPath() async throws {
+        var client = try makeClient { _ in
+            throw TestError.unexpectedEndpoint
+        }
+        client.usageEndpoint = URL(string: "https://chatgpt.com/not-the-codex-endpoint")!
+
+        do {
+            _ = try await client.fetchUsage()
+            XCTFail("Expected untrustedEndpoint")
+        } catch CodexAPIError.untrustedEndpoint {
+        } catch {
+            XCTFail("Expected untrustedEndpoint, got \(error)")
+        }
+    }
+
+    func testTrustedEndpointRejectsQueryUserInfoFragmentAndPort() {
+        let urls = [
+            "https://chatgpt.com/backend-api/wham/usage?debug=1",
+            "https://user:pass@chatgpt.com/backend-api/wham/usage",
+            "https://chatgpt.com:443/backend-api/wham/usage",
+            "https://chatgpt.com/backend-api/wham/usage#fragment",
+            "http://chatgpt.com/backend-api/wham/usage"
+        ]
+
+        for url in urls {
+            XCTAssertFalse(CodexAPIClient.isTrustedEndpoint(URL(string: url)!), url)
+        }
+
+        XCTAssertTrue(CodexAPIClient.isTrustedEndpoint(URL(string: "https://chatgpt.com/backend-api/wham/usage")!))
+        XCTAssertTrue(CodexAPIClient.isTrustedEndpoint(URL(string: "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits")!))
     }
 
     func testEmptySuccessfulResponseHasClearError() async throws {
@@ -236,6 +356,52 @@ final class CodexAPIClientTests: XCTestCase {
         XCTAssertEqual(store.menuBarTitle(for: .weekly), "63% | Sunday")
         XCTAssertEqual(store.menuBarTitle(for: .fiveHour), "29% | 9:50 PM")
         XCTAssertEqual(store.accountDisplayLabel, "builder@example.com")
+    }
+
+    @MainActor
+    func testUsageWindowClassificationPrefersDurationWhenEndpointOrderIsSwapped() async throws {
+        let fiveHourResetAt = localTimestamp(year: 2026, month: 7, day: 17, hour: 21, minute: 50)
+        let weeklyResetAt = localTimestamp(year: 2026, month: 7, day: 19, hour: 8, minute: 0)
+        let client = try makeClient { request in
+            switch request.url?.path {
+            case "/backend-api/wham/rate-limit-reset-credits":
+                let body = #"{"available_count":0,"credits":[]}"#.data(using: .utf8)!
+                return (body, testHTTPResponse(status: 200, contentType: "application/json"))
+
+            case "/backend-api/wham/usage":
+                let body = """
+                {
+                  "plan_type": "pro",
+                  "rate_limit": {
+                    "primary_window": {
+                      "used_percent": 37,
+                      "limit_window_seconds": 604800,
+                      "reset_after_seconds": 259200,
+                      "reset_at": \(weeklyResetAt)
+                    },
+                    "secondary_window": {
+                      "used_percent": 71,
+                      "limit_window_seconds": 18000,
+                      "reset_after_seconds": 3600,
+                      "reset_at": \(fiveHourResetAt)
+                    }
+                  }
+                }
+                """.data(using: .utf8)!
+                return (body, testHTTPResponse(status: 200, contentType: "application/json"))
+
+            default:
+                throw TestError.unexpectedEndpoint
+            }
+        }
+        let store = ResetCreditsStore(client: client)
+
+        await store.refresh()
+
+        XCTAssertEqual(store.usageWindow(for: .weekly)?.id, "weekly")
+        XCTAssertEqual(store.usageWindow(for: .fiveHour)?.id, "five-hour")
+        XCTAssertEqual(store.menuBarTitle(for: .weekly), "63% | Sunday")
+        XCTAssertEqual(store.menuBarTitle(for: .fiveHour), "29% | 9:50 PM")
     }
 
     private func makeClient(

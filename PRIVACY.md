@@ -15,6 +15,10 @@ https://chatgpt.com/backend-api/wham/usage
 https://chatgpt.com/backend-api/wham/rate-limit-reset-credits
 ```
 
+The app only trusts those exact HTTPS endpoints. Requests with another host,
+path, query string, fragment, userinfo, or custom port are rejected before the
+network request is sent.
+
 The app does not:
 
 - ask for an OpenAI API key

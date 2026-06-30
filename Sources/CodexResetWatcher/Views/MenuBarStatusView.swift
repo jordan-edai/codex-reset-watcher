@@ -2,6 +2,9 @@ import AppKit
 import SwiftUI
 
 struct MenuBarStatusView: View {
+    private static let visibleResetCreditLimit = 4
+    private static let visibleCachedSnapshotLimit = 3
+
     @ObservedObject var store: ResetCreditsStore
     @ObservedObject var mainWindowController: MainWindowController
     @Binding var menuBarMetricRawValue: String
@@ -20,38 +23,14 @@ struct MenuBarStatusView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             header
 
             ForEach(store.errorMessages, id: \.self) { message in
                 errorRow(message)
             }
 
-            HStack(spacing: 10) {
-                Image(systemName: "menubar.rectangle")
-                    .font(.system(size: 14, weight: .semibold))
-                    .frame(width: CodexStyle.Size.menuIconColumn)
-                    .foregroundStyle(CodexPalette.secondaryText)
-
-                Label("Menu bar", systemImage: "menubar.rectangle")
-                    .labelStyle(.titleOnly)
-                    .font(CodexStyle.Typography.menuRowTitle)
-                    .foregroundStyle(CodexPalette.primaryText)
-                    .lineLimit(1)
-
-                Spacer()
-
-                Picker("Menu bar display", selection: menuBarMetricSelection) {
-                    ForEach(MenuBarMetric.allCases) { metric in
-                        Text(metric.pickerTitle)
-                            .tag(metric.rawValue)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.segmented)
-                .frame(width: CodexStyle.Size.menuControlWidth)
-            }
-            .codexRow(minHeight: 44)
+            nudgeRow
 
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(store.usageWindows) { window in
@@ -59,35 +38,14 @@ struct MenuBarStatusView: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                nudgeRow
+            menuBarDisplayRow
 
-                ForEach(Array(store.availableCreditDisplays.prefix(4).enumerated()), id: \.element.id) { index, credit in
-                    resetExpiryRow(index: index, credit: credit)
-                }
-
-                if store.availableCreditDisplays.isEmpty, store.creditsErrorMessage == nil {
-                    emptyResetRow
-                }
-            }
+            resetRows
 
             if !store.cachedSnapshots.isEmpty {
                 Divider()
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Cached snapshots")
-                        .font(CodexStyle.Typography.menuRowMeta.weight(.semibold))
-                        .foregroundStyle(CodexPalette.secondaryText)
-                        .padding(.horizontal, 2)
-
-                    ForEach(store.cachedSnapshots.prefix(3)) { snapshot in
-                        cachedAccountRow(snapshot)
-                    }
-
-                    if store.staleCachedSnapshotCount > 0 {
-                        clearStaleRow
-                    }
-                }
+                cachedSnapshotsSection
             }
 
             Divider()
@@ -120,9 +78,8 @@ struct MenuBarStatusView: View {
 
     private var header: some View {
         HStack(alignment: .center, spacing: CodexStyle.Spacing.panel) {
-            HeaderArtworkView()
+            CodexArtworkThumbnail(compact: true)
                 .frame(width: CodexStyle.Size.menuArtworkWidth, height: CodexStyle.Size.menuArtworkHeight)
-                .clipShape(RoundedRectangle(cornerRadius: CodexStyle.Radius.artwork, style: .continuous))
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("Codex limits")
@@ -148,18 +105,52 @@ struct MenuBarStatusView: View {
         .padding(.top, 1)
     }
 
-    private func limitRow(_ window: UsageLimitDisplay) -> some View {
-        HStack(alignment: .center, spacing: CodexStyle.Spacing.rowGap) {
-            Image(systemName: window.kind == .weekly ? "calendar" : "clock")
-                .font(.system(size: 14, weight: .semibold))
+    private var menuBarDisplayRow: some View {
+        HStack(spacing: CodexStyle.Spacing.rowGap) {
+            CodexIconBadge(systemName: "menubar.rectangle", tone: .muted, size: 24, symbolSize: CodexStyle.Icon.menu)
                 .frame(width: CodexStyle.Size.menuIconColumn)
-                .foregroundStyle(CodexPalette.primaryText)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Menu bar")
+                    .font(CodexStyle.Typography.menuRowTitle)
+                    .foregroundStyle(CodexPalette.primaryText)
+                    .lineLimit(1)
+                Text("Week or 5h in title")
+                    .font(CodexStyle.Typography.menuRowMeta)
+                    .foregroundStyle(CodexPalette.secondaryText)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Picker("Menu bar display", selection: menuBarMetricSelection) {
+                ForEach(MenuBarMetric.allCases) { metric in
+                    Text(metric.pickerTitle)
+                        .tag(metric.rawValue)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .frame(width: CodexStyle.Size.menuControlWidth)
+        }
+        .codexRow(minHeight: 48)
+    }
+
+    private func limitRow(_ window: UsageLimitDisplay) -> some View {
+        return HStack(alignment: .center, spacing: CodexStyle.Spacing.rowGap) {
+            CodexIconBadge(
+                systemName: window.kind == .weekly ? "calendar" : "clock",
+                tone: CodexTone.usage(remainingPercent: window.remainingPercent),
+                size: 24,
+                symbolSize: CodexStyle.Icon.menu
+            )
+                .frame(width: CodexStyle.Size.menuIconColumn)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(window.title)
                     .font(CodexStyle.Typography.menuRowTitle)
                     .lineLimit(1)
-                Text(resetText(window))
+                Text(menuBarMetric.matches(window.kind) ? "Menu bar · \(selectedResetText(window))" : resetText(window))
                     .font(CodexStyle.Typography.menuRowMeta)
                     .foregroundStyle(CodexPalette.secondaryText)
                     .lineLimit(1)
@@ -177,12 +168,44 @@ struct MenuBarStatusView: View {
         .codexRow(isSelected: menuBarMetric.matches(window.kind))
     }
 
+    private var resetRows: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Reset credits")
+                    .font(CodexStyle.Typography.menuRowMeta.weight(.semibold))
+                    .foregroundStyle(CodexPalette.secondaryText)
+                Spacer()
+                Text("\(store.availableCount) available")
+                    .font(CodexStyle.Typography.menuRowMeta)
+                    .foregroundStyle(CodexPalette.secondaryText)
+            }
+            .padding(.horizontal, 2)
+
+            ForEach(visibleResetCredits, id: \.element.id) { index, credit in
+                resetExpiryRow(index: index, credit: credit)
+            }
+
+            ForEach(0..<missingVisibleResetCreditCount, id: \.self) { offset in
+                missingResetExpiryRow(index: visibleResetCredits.count + offset)
+            }
+
+            if totalResetCreditCount > Self.visibleResetCreditLimit {
+                moreResetsRow
+            }
+
+            if totalResetCreditCount == 0, store.creditsErrorMessage == nil {
+                emptyResetRow
+            }
+        }
+    }
+
     private func resetExpiryRow(index: Int, credit: ResetCreditDisplay) -> some View {
-        HStack(alignment: .center, spacing: CodexStyle.Spacing.rowGap) {
-            Image(systemName: "calendar.badge.clock")
-                .font(.system(size: 14, weight: .semibold))
+        let urgency = ResetExpiryUrgency.make(expiresAt: credit.expiresAt, isAvailable: credit.isAvailable)
+        let tone = CodexTone.resetUrgency(urgency)
+
+        return HStack(alignment: .center, spacing: CodexStyle.Spacing.rowGap) {
+            CodexIconBadge(systemName: "calendar.badge.clock", tone: tone, size: 24, symbolSize: CodexStyle.Icon.menu)
                 .frame(width: CodexStyle.Size.menuIconColumn)
-                .foregroundStyle(credit.isAvailable ? CodexPalette.availableGreen : CodexPalette.secondaryText)
 
             Text("Reset \(index + 1) expires:")
                 .font(CodexStyle.Typography.menuRowTitle)
@@ -202,24 +225,151 @@ struct MenuBarStatusView: View {
         .codexRow(minHeight: 54)
     }
 
+    private func missingResetExpiryRow(index: Int) -> some View {
+        HStack(alignment: .center, spacing: CodexStyle.Spacing.rowGap) {
+            CodexIconBadge(systemName: "calendar.badge.questionmark", tone: .muted, size: 24, symbolSize: CodexStyle.Icon.menu)
+                .frame(width: CodexStyle.Size.menuIconColumn)
+
+            Text("Reset \(index + 1) expires:")
+                .font(CodexStyle.Typography.menuRowTitle)
+                .lineLimit(1)
+
+            Spacer(minLength: 8)
+
+            VStack(alignment: .trailing, spacing: 1) {
+                Text("Expiry")
+                Text("unavailable")
+            }
+            .font(CodexStyle.Typography.menuDate)
+            .multilineTextAlignment(.trailing)
+            .frame(width: CodexStyle.Size.menuDateColumn, alignment: .trailing)
+        }
+        .codexRow(minHeight: 54)
+    }
+
+    private var moreResetsRow: some View {
+        Button {
+            showMainWindow()
+        } label: {
+            HStack(alignment: .center, spacing: CodexStyle.Spacing.rowGap) {
+                CodexIconBadge(systemName: "ellipsis", tone: .muted, size: 24, symbolSize: CodexStyle.Icon.menu)
+                    .frame(width: CodexStyle.Size.menuIconColumn)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(hiddenResetCreditCount) more reset \(hiddenResetCreditCount == 1 ? "credit" : "credits")")
+                        .font(CodexStyle.Typography.menuRowTitle)
+                        .foregroundStyle(CodexPalette.primaryText)
+                        .lineLimit(1)
+
+                    Text(hiddenResetCreditDetail)
+                        .font(CodexStyle.Typography.menuRowMeta)
+                        .foregroundStyle(CodexPalette.secondaryText)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                if let nextHiddenExpiry {
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text(DateFormatting.weekdayDate(nextHiddenExpiry))
+                        Text(DateFormatting.timeOnly(nextHiddenExpiry))
+                    }
+                    .font(CodexStyle.Typography.menuDate)
+                    .monospacedDigit()
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: CodexStyle.Size.menuDateColumn, alignment: .trailing)
+                } else {
+                    Text("Desktop")
+                        .font(CodexStyle.Typography.menuRowMeta)
+                        .foregroundStyle(CodexPalette.secondaryText)
+                        .lineLimit(1)
+                        .frame(width: CodexStyle.Size.menuDateColumn, alignment: .trailing)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .codexRow(minHeight: 50)
+    }
+
+    private var hiddenResetCreditCount: Int {
+        max(0, totalResetCreditCount - Self.visibleResetCreditLimit)
+    }
+
+    private var nextHiddenExpiry: Date? {
+        store.availableCreditDisplays.dropFirst(Self.visibleResetCreditLimit).first?.expiresAt
+    }
+
+    private var hiddenResetCreditDetail: String {
+        if nextHiddenExpiry != nil {
+            return "Next hidden expires"
+        }
+        return "Some expiries unavailable"
+    }
+
+    private var totalResetCreditCount: Int {
+        max(store.availableCreditDisplays.count, store.availableCount)
+    }
+
+    private var visibleResetRowCount: Int {
+        min(totalResetCreditCount, Self.visibleResetCreditLimit)
+    }
+
+    private var visibleResetCredits: [(offset: Int, element: ResetCreditDisplay)] {
+        Array(store.availableCreditDisplays.prefix(Self.visibleResetCreditLimit).enumerated())
+    }
+
+    private var missingVisibleResetCreditCount: Int {
+        max(0, visibleResetRowCount - visibleResetCredits.count)
+    }
+
+    private var cachedSnapshotsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Cached snapshots")
+                    .font(CodexStyle.Typography.menuRowMeta.weight(.semibold))
+                    .foregroundStyle(CodexPalette.secondaryText)
+                Spacer()
+                Text("\(store.cachedSnapshots.count) total")
+                    .font(CodexStyle.Typography.menuRowMeta)
+                    .foregroundStyle(CodexPalette.secondaryText)
+            }
+            .padding(.horizontal, 2)
+
+            ForEach(Array(store.cachedSnapshots.prefix(Self.visibleCachedSnapshotLimit))) { snapshot in
+                cachedAccountRow(snapshot)
+            }
+
+            if store.cachedSnapshots.count > Self.visibleCachedSnapshotLimit {
+                cachedSnapshotsOverflowRow
+            }
+
+            if store.staleCachedSnapshotCount > 0 {
+                clearStaleRow
+            }
+        }
+    }
+
     private func cachedAccountRow(_ snapshot: CodexAccountSnapshot) -> some View {
         Button {
             store.selectCachedAccount(snapshot.id)
             showMainWindow()
         } label: {
             HStack(alignment: .center, spacing: CodexStyle.Spacing.rowGap) {
-                Image(systemName: snapshot.isStale() ? "clock.badge.exclamationmark" : "clock.arrow.circlepath")
-                    .font(.system(size: 14, weight: .semibold))
-                    .frame(width: CodexStyle.Size.menuIconColumn)
-                    .foregroundStyle(snapshot.isStale() ? CodexPalette.warningOrange : CodexPalette.secondaryText)
+                CodexIconBadge(
+                    systemName: snapshot.isStale() ? "clock.badge.exclamationmark" : "clock.arrow.circlepath",
+                    tone: snapshot.isStale() ? .warning : .muted,
+                    size: 24,
+                    symbolSize: CodexStyle.Icon.menu
+                )
+                .frame(width: CodexStyle.Size.menuIconColumn)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(snapshot.effectiveLabel)
                         .font(CodexStyle.Typography.menuRowTitle)
+                        .foregroundStyle(CodexPalette.primaryText)
                         .lineLimit(1)
                         .truncationMode(.middle)
 
-                    Text(snapshot.isStale() ? "Stale snapshot" : "Cached snapshot")
+                    Text(snapshot.isStale() ? "Stale cached snapshot" : "Cached snapshot")
                         .font(CodexStyle.Typography.menuRowMeta)
                         .foregroundStyle(snapshot.isStale() ? CodexPalette.warningOrange : CodexPalette.secondaryText)
                         .lineLimit(1)
@@ -238,15 +388,39 @@ struct MenuBarStatusView: View {
         .codexRow(minHeight: 48)
     }
 
+    private var cachedSnapshotsOverflowRow: some View {
+        Button {
+            showMainWindow()
+        } label: {
+            HStack(alignment: .center, spacing: CodexStyle.Spacing.rowGap) {
+                CodexIconBadge(systemName: "ellipsis", tone: .muted, size: 24, symbolSize: CodexStyle.Icon.menu)
+                    .frame(width: CodexStyle.Size.menuIconColumn)
+
+                Text("\(store.cachedSnapshots.count - Self.visibleCachedSnapshotLimit) more cached \(store.cachedSnapshots.count - Self.visibleCachedSnapshotLimit == 1 ? "snapshot" : "snapshots")")
+                    .font(CodexStyle.Typography.menuRowTitle)
+                    .foregroundStyle(CodexPalette.primaryText)
+                    .lineLimit(1)
+
+                Spacer()
+
+                Text("Desktop")
+                    .font(CodexStyle.Typography.menuRowMeta)
+                    .foregroundStyle(CodexPalette.secondaryText)
+                    .lineLimit(1)
+                    .frame(width: CodexStyle.Size.menuDateColumn, alignment: .trailing)
+            }
+        }
+        .buttonStyle(.plain)
+        .codexRow(minHeight: 44)
+    }
+
     private var clearStaleRow: some View {
         Button {
             store.clearStaleSnapshots()
         } label: {
             HStack(alignment: .center, spacing: CodexStyle.Spacing.rowGap) {
-                Image(systemName: "clock.badge.exclamationmark")
-                    .font(.system(size: 14, weight: .semibold))
+                CodexIconBadge(systemName: "clock.badge.exclamationmark", tone: .warning, size: 24, symbolSize: CodexStyle.Icon.menu)
                     .frame(width: CodexStyle.Size.menuIconColumn)
-                    .foregroundStyle(CodexPalette.warningOrange)
 
                 Text("Clear stale snapshots")
                     .font(CodexStyle.Typography.menuRowTitle)
@@ -262,10 +436,8 @@ struct MenuBarStatusView: View {
 
     private var nudgeRow: some View {
         HStack(alignment: .center, spacing: CodexStyle.Spacing.rowGap) {
-            Image(systemName: store.statusSymbolName)
-                .font(.system(size: 14, weight: .semibold))
+            CodexIconBadge(systemName: store.statusSymbolName, tone: nudgeTone, size: 24, symbolSize: CodexStyle.Icon.menu)
                 .frame(width: CodexStyle.Size.menuIconColumn)
-                .foregroundStyle(nudgeTint)
 
             Text(store.nudge.title)
                 .font(CodexStyle.Typography.menuRowTitle)
@@ -279,30 +451,28 @@ struct MenuBarStatusView: View {
                 .truncationMode(.tail)
                 .frame(width: CodexStyle.Size.menuDateColumn, alignment: .trailing)
         }
-        .codexRow(minHeight: 44)
+        .codexRow(background: nudgeTone.background, border: nudgeTone.border, minHeight: 46)
     }
 
-    private var nudgeTint: Color {
+    private var nudgeTone: CodexTone {
         switch store.nudge.tier {
         case .spend:
-            return CodexPalette.availableGreen
+            return .success
         case .expiringReset:
-            return CodexPalette.urgentRed
+            return .danger
         case .deadline, .useIfBlocked:
-            return CodexPalette.warningOrange
+            return .warning
         case .waitFiveHour, .hold, .steady:
-            return CodexPalette.accent
+            return .neutral
         case .noResets, .unavailable:
-            return CodexPalette.secondaryText
+            return .muted
         }
     }
 
     private var emptyResetRow: some View {
         HStack(spacing: CodexStyle.Spacing.rowGap) {
-            Image(systemName: "checkmark.seal")
-                .font(.system(size: 14, weight: .semibold))
+            CodexIconBadge(systemName: "checkmark.seal", tone: .muted, size: 24, symbolSize: CodexStyle.Icon.menu)
                 .frame(width: CodexStyle.Size.menuIconColumn)
-                .foregroundStyle(CodexPalette.secondaryText)
 
             Text("No available resets")
                 .font(CodexStyle.Typography.menuRowTitle)
@@ -315,10 +485,8 @@ struct MenuBarStatusView: View {
 
     private func errorRow(_ message: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 13, weight: .semibold))
+            CodexIconBadge(systemName: "exclamationmark.triangle.fill", tone: .warning, size: 24, symbolSize: 13)
                 .frame(width: CodexStyle.Size.menuIconColumn)
-                .foregroundStyle(CodexPalette.warningOrange)
 
             Text(message)
                 .font(.subheadline)
@@ -338,9 +506,32 @@ struct MenuBarStatusView: View {
 
     private func resetText(_ window: UsageLimitDisplay) -> String {
         if let resetDate = window.window.resetDate {
-            return "Resets: \(DateFormatting.weekdayDate(resetDate)) at \(DateFormatting.timeOnly(resetDate))"
+            return "Resets \(DateFormatting.weekdayDate(resetDate)), \(DateFormatting.timeOnly(resetDate))"
         }
-        return "Resets in \(DateFormatting.duration(seconds: window.window.resetAfterSeconds))"
+        guard let seconds = window.window.resetAfterSeconds else {
+            return "Reset time unavailable"
+        }
+        let duration = DateFormatting.duration(seconds: seconds)
+        return duration == "now" ? "Resets now" : "Resets in \(duration)"
+    }
+
+    private func selectedResetText(_ window: UsageLimitDisplay) -> String {
+        guard let resetDate = window.window.resetDate else {
+            guard let seconds = window.window.resetAfterSeconds else {
+                return "reset time unavailable"
+            }
+            let duration = DateFormatting.duration(seconds: seconds)
+            return duration == "now" ? "resets now" : "resets in \(duration)"
+        }
+
+        switch window.kind {
+        case .weekly:
+            return "resets \(DateFormatting.weekdayName(resetDate))"
+        case .fiveHour:
+            return "resets \(DateFormatting.timeOnly(resetDate))"
+        case .generic:
+            return "resets \(DateFormatting.weekdayDate(resetDate))"
+        }
     }
 
     private func showMainWindow() {

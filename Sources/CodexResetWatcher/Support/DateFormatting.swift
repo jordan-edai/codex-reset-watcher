@@ -149,6 +149,9 @@ enum DateFormatting {
         }
 
         let clamped = max(0, seconds)
+        if clamped == 0 {
+            return "now"
+        }
         let days = clamped / 86_400
         let hours = (clamped % 86_400) / 3_600
         let minutes = (clamped % 3_600) / 60

@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 struct AccountDetailView: View {
@@ -27,13 +26,10 @@ struct AccountDetailView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: CodexStyle.Spacing.stack) {
                         resetSection
-
                         NudgeCardView(nudge: detail.nudge)
 
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: CodexStyle.Spacing.panel) {
-                            ForEach(detail.usageWindows) { window in
-                                UsageLimitCardView(window: window)
-                            }
+                        if !detail.usageWindows.isEmpty {
+                            usageSection
                         }
                     }
                     .padding(.vertical, 2)
@@ -47,14 +43,14 @@ struct AccountDetailView: View {
     }
 
     private var headerCard: some View {
-        HStack(spacing: CodexStyle.Spacing.panel) {
-            HeaderArtworkView()
+        HStack(spacing: 13) {
+            CodexArtworkThumbnail()
                 .frame(width: CodexStyle.Size.artworkWidth, height: CodexStyle.Size.artworkHeight)
-                .clipShape(RoundedRectangle(cornerRadius: CodexStyle.Radius.artwork, style: .continuous))
 
             VStack(alignment: .leading, spacing: 5) {
                 Label(detail.planLabel, systemImage: "terminal.fill")
-                    .font(.subheadline.weight(.semibold))
+                    .font(CodexStyle.Typography.eyebrow)
+                    .textCase(.uppercase)
                     .foregroundStyle(CodexPalette.mutedText)
 
                 Text("Codex Reset Watcher")
@@ -79,12 +75,13 @@ struct AccountDetailView: View {
                     .font(CodexStyle.Typography.largeMetric)
                     .monospacedDigit()
                 Text(resetCountLabel)
-                    .font(.subheadline.weight(.semibold))
+                    .font(CodexStyle.Typography.caption)
                     .foregroundStyle(CodexPalette.secondaryText)
             }
+            .padding(.horizontal, 4)
         }
         .padding(CodexStyle.Spacing.panel)
-        .codexPanel()
+        .codexPanel(background: CodexPalette.cardBackground, border: CodexPalette.softBorder)
     }
 
     private var resetCountLabel: String {
@@ -94,10 +91,12 @@ struct AccountDetailView: View {
 
     private var snapshotBanner: some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: detail.isStale ? "clock.badge.exclamationmark" : "clock.arrow.circlepath")
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(detail.isStale ? CodexPalette.warningOrange : CodexPalette.accent)
-                .frame(width: 28)
+            CodexIconBadge(
+                systemName: detail.isStale ? "clock.badge.exclamationmark" : "clock.arrow.circlepath",
+                tone: detail.isStale ? .warning : .neutral,
+                size: CodexStyle.Size.iconBadge,
+                symbolSize: CodexStyle.Icon.content
+            )
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(detail.statusTitle)
@@ -110,33 +109,52 @@ struct AccountDetailView: View {
         }
         .padding(CodexStyle.Spacing.panel)
         .codexPanel(
-            background: detail.isStale ? CodexPalette.warningOrange.opacity(0.10) : CodexPalette.panelBackground,
-            border: detail.isStale ? CodexPalette.warningOrange.opacity(0.24) : CodexPalette.selectedBorder,
+            background: detail.isStale ? CodexTone.warning.background : CodexTone.neutral.background,
+            border: detail.isStale ? CodexTone.warning.border : CodexTone.neutral.border,
             shadow: false
         )
     }
 
+    private var usageSection: some View {
+        VStack(alignment: .leading, spacing: CodexStyle.Spacing.stack) {
+            CodexSectionHeader(title: "Usage windows", detail: detail.isCached ? "Cached last-seen limits" : "Live limits")
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: CodexStyle.Spacing.panel) {
+                ForEach(detail.usageWindows) { window in
+                    UsageLimitCardView(window: window, isCached: detail.isCached)
+                }
+            }
+        }
+    }
+
     private var resetSection: some View {
         VStack(alignment: .leading, spacing: CodexStyle.Spacing.stack) {
-            HStack {
-                Text("Reset expiry")
-                    .font(CodexStyle.Typography.sectionTitle)
-                Spacer()
-                Text("\(detail.availableCount) \(detail.isCached ? "last seen" : "available")")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(CodexPalette.secondaryText)
-            }
+            CodexSectionHeader(
+                title: "Reset expiry",
+                detail: "\(detail.availableCount) \(detail.isCached ? "last seen" : "available")"
+            )
 
-            if detail.credits.isEmpty, detail.errorMessages.isEmpty {
+            if !hasResetRows {
                 emptyState
             } else {
                 LazyVStack(spacing: 8) {
                     ForEach(Array(detail.credits.enumerated()), id: \.element.id) { index, credit in
                         CreditRowView(credit: credit, ordinal: index + 1)
                     }
+                    ForEach(0..<missingCreditCount, id: \.self) { offset in
+                        MissingResetExpiryRowView(ordinal: detail.credits.count + offset + 1)
+                    }
                 }
             }
         }
+    }
+
+    private var hasResetRows: Bool {
+        !detail.credits.isEmpty || missingCreditCount > 0
+    }
+
+    private var missingCreditCount: Int {
+        max(0, detail.availableCount - detail.credits.count)
     }
 
     private var loadingState: some View {
@@ -176,7 +194,7 @@ struct AccountDetailView: View {
                 }
             }
 
-            if cachedAccountCount > 0 {
+            if detail.isCached, cachedAccountCount > 0 {
                 Button {
                     onClearCached()
                 } label: {
@@ -205,9 +223,10 @@ struct AccountDetailView: View {
             Image(systemName: "checkmark.seal")
                 .font(.system(size: 30))
                 .foregroundStyle(CodexPalette.secondaryText)
-            Text(detail.isCached ? "No reset expiries saved." : "No banked resets right now.")
+                .accessibilityHidden(true)
+            Text(emptyStateTitle)
                 .font(CodexStyle.Typography.sectionTitle)
-            Text(detail.isCached ? "This snapshot did not include reset-credit expiry rows." : "Codex answered, but the reset stash is empty.")
+            Text(emptyStateDetail)
                 .font(.body)
                 .foregroundStyle(CodexPalette.secondaryText)
         }
@@ -216,10 +235,31 @@ struct AccountDetailView: View {
         .codexPanel(shadow: false)
     }
 
+    private var emptyStateTitle: String {
+        if detail.isCached {
+            return "No reset expiries saved."
+        }
+        if !detail.errorMessages.isEmpty {
+            return "Reset expiries unavailable."
+        }
+        return "No banked resets right now."
+    }
+
+    private var emptyStateDetail: String {
+        if detail.isCached {
+            return "This snapshot did not include reset-credit expiry rows."
+        }
+        if !detail.errorMessages.isEmpty {
+            return "Reset stash did not refresh. Try again in a bit."
+        }
+        return "Codex answered, but the reset stash is empty."
+    }
+
     private func errorBanner(_ message: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(CodexPalette.warningOrange)
+                .accessibilityHidden(true)
             Text(message)
                 .font(.body)
                 .foregroundStyle(CodexPalette.primaryText)
@@ -233,64 +273,51 @@ struct AccountDetailView: View {
             shadow: false
         )
     }
-}
 
-struct HeaderArtworkView: View {
-    var body: some View {
-        if let url = Bundle.main.url(forResource: "UsageHeader", withExtension: "png"),
-           let image = NSImage(contentsOf: url) {
-            Image(nsImage: image)
-                .resizable()
-                .scaledToFill()
-        } else {
-            ZStack {
-                CodexPalette.rowBackground
-                Image(systemName: "terminal.fill")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundStyle(CodexPalette.secondaryText)
-            }
-        }
-    }
 }
 
 private struct UsageLimitCardView: View {
     let window: UsageLimitDisplay
+    let isCached: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label(window.title, systemImage: iconName)
-                    .font(CodexStyle.Typography.cardTitle)
+                HStack(spacing: 9) {
+                    CodexIconBadge(systemName: iconName, tone: tone, size: CodexStyle.Size.smallIconBadge)
+                    Text(window.title)
+                        .font(CodexStyle.Typography.cardTitle)
+                }
                 Spacer()
                 Text(percentText(window.remainingPercent))
                     .font(CodexStyle.Typography.cardMetric)
                     .monospacedDigit()
             }
 
-            LimitMeterView(remainingPercent: window.remainingPercent, tint: tint)
+            LimitMeterView(label: "\(window.title) remaining", remainingPercent: window.remainingPercent, tint: tint)
 
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
                 GridRow {
-                    Text("Used")
+                    Text(isCached ? "Last seen used" : "Used")
                         .foregroundStyle(CodexPalette.secondaryText)
                     Text(percentText(window.usedPercent))
                         .monospacedDigit()
                 }
                 GridRow {
-                    Text("Resets in")
+                    Text(resetDurationLabel)
                         .foregroundStyle(CodexPalette.secondaryText)
-                    Text(DateFormatting.duration(seconds: window.window.resetAfterSeconds))
+                    Text(resetDurationValue)
                 }
                 GridRow {
-                    Text("Resets at")
+                    Text(isCached ? "Cached reset at" : "Resets at")
                         .foregroundStyle(CodexPalette.secondaryText)
-                    Text(DateFormatting.weekdayCompact(window.window.resetDate))
+                    Text(resetDateValue)
                 }
             }
-            .font(.subheadline)
+            .font(CodexStyle.Typography.caption)
         }
         .padding(CodexStyle.Spacing.panel)
-        .codexPanel()
+        .codexPanel(background: CodexPalette.elevatedBackground, border: CodexPalette.softBorder, shadow: false)
     }
 
     private var iconName: String {
@@ -305,16 +332,39 @@ private struct UsageLimitCardView: View {
     }
 
     private var tint: Color {
-        guard let remaining = window.remainingPercent else {
-            return CodexPalette.secondaryText
+        tone.foreground
+    }
+
+    private var tone: CodexTone {
+        CodexTone.usage(remainingPercent: window.remainingPercent)
+    }
+
+    private var resetDurationLabel: String {
+        guard window.window.resetAfterSeconds != nil else {
+            return isCached ? "Cached reset" : "Resets"
         }
-        if remaining <= 15 {
-            return CodexPalette.urgentRed
+        if isCached {
+            return resetDurationValue == "passed" ? "Cached reset" : "Cached reset in"
         }
-        if remaining <= 30 {
-            return CodexPalette.warningOrange
+        return resetDurationValue == "now" ? "Resets" : "Resets in"
+    }
+
+    private var resetDurationValue: String {
+        guard window.window.resetAfterSeconds != nil else {
+            return "Unavailable"
         }
-        return CodexPalette.availableGreen
+        let duration = DateFormatting.duration(seconds: window.window.resetAfterSeconds)
+        if isCached, duration == "now" {
+            return "passed"
+        }
+        return duration
+    }
+
+    private var resetDateValue: String {
+        guard window.window.resetDate != nil else {
+            return "Unavailable"
+        }
+        return DateFormatting.weekdayCompact(window.window.resetDate)
     }
 
     private func percentText(_ value: Int?) -> String {
@@ -326,6 +376,7 @@ private struct UsageLimitCardView: View {
 }
 
 private struct LimitMeterView: View {
+    let label: String
     let remainingPercent: Int?
     let tint: Color
 
@@ -339,9 +390,9 @@ private struct LimitMeterView: View {
                     .frame(width: proxy.size.width * clampedValue)
             }
         }
-        .frame(height: 6)
+        .frame(height: CodexStyle.Meter.height)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Remaining")
+        .accessibilityLabel(label)
         .accessibilityValue(remainingPercent.map { "\($0)%" } ?? "Unknown")
     }
 
@@ -356,10 +407,12 @@ private struct NudgeCardView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: iconName)
-                .font(.title2)
-                .foregroundStyle(tint)
-                .frame(width: 28)
+            CodexIconBadge(
+                systemName: iconName,
+                tone: tone,
+                size: CodexStyle.Size.iconBadge,
+                symbolSize: CodexStyle.Icon.content
+            )
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack {
@@ -367,20 +420,20 @@ private struct NudgeCardView: View {
                         .font(CodexStyle.Typography.cardTitle)
                     Spacer()
                     Text(nudge.detail)
-                        .font(.subheadline.weight(.semibold))
+                        .font(CodexStyle.Typography.caption)
                         .foregroundStyle(CodexPalette.secondaryText)
                         .lineLimit(1)
                 }
 
                 Text(nudge.message)
-                    .font(.subheadline)
+                    .font(CodexStyle.Typography.body)
                     .foregroundStyle(CodexPalette.secondaryText)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(CodexStyle.Spacing.panel)
-        .codexPanel(border: tint.opacity(0.28))
+        .codexPanel(background: tone.background, border: tone.border, shadow: false)
     }
 
     private var iconName: String {
@@ -406,20 +459,20 @@ private struct NudgeCardView: View {
         }
     }
 
-    private var tint: Color {
+    private var tone: CodexTone {
         switch nudge.tier {
         case .spend:
-            return CodexPalette.availableGreen
+            return .success
         case .expiringReset:
-            return CodexPalette.urgentRed
+            return .danger
         case .deadline:
-            return CodexPalette.warningOrange
+            return .warning
         case .useIfBlocked:
-            return CodexPalette.warningOrange
+            return .warning
         case .waitFiveHour, .hold, .steady:
-            return CodexPalette.accent
+            return .neutral
         case .noResets, .unavailable:
-            return CodexPalette.secondaryText
+            return .muted
         }
     }
 }
