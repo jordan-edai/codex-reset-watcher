@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.3.4 - 2026-06-30
+
+- Restores compact per-snapshot rows in the menu dropdown so cached snapshots
+  select their detail view before opening the desktop window.
+- Keeps cached-account detail copy honest by labeling cached usage as last-seen
+  data, not live limits.
+- Shows up to four reset expiry rows in the menu and includes the next hidden
+  expiry cue when additional reset credits are available.
+- Shows explicit unavailable-expiry rows when Codex reports more available reset
+  credits than it returns usable expiry records for.
+- Keeps `Clear stale` visible whenever stale cached snapshots exist.
+- Shows elapsed reset windows as `now` instead of rounding expired cached reset
+  timers up to `1m`.
+- Hardens refresh reliability for same-account token rotation, swapped usage
+  window ordering, flexible numeric endpoint fields, exact trusted Codex endpoint
+  checks, sanitized live error messages, and reset-credit partial failures that
+  should not carry old expiry rows forward as fresh data.
+- Moves routine UI surfaces back onto light shared design tokens and documents
+  the `CodexTone` / reusable component layer for future visual changes.
+- Tightens the GitHub release workflow so tagged releases run tests, package the
+  app, verify the bundle version against the tag, check the code signature, and
+  validate the versioned zip before upload.
+- Strips release binaries before signing so packaged apps do not retain local
+  build/source paths in symbol metadata.
+- Cleans old versioned release zips before packaging so release uploads cannot
+  accidentally include stale artifacts.
+- Documents versioned release zip assets in the install instructions.
+- Verifies the packaged app with local UI QA against the menu bar title,
+  dropdown metric toggle, cached snapshot selection, and stale cleanup surfaces.
+
 ## 0.3.3 - 2026-06-26
 
 - Adds an explicit `Clear stale` action in the desktop sidebar, desktop footer,

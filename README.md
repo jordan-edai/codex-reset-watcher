@@ -14,6 +14,8 @@ It reads your existing local Codex Desktop login from `~/.codex/auth.json`, call
 - cached snapshots for previously seen Codex accounts, labeled separately from
   the active account
 - banked reset credits and expiry dates
+- explicit unavailable-expiry rows when Codex reports a reset count but omits a
+  usable expiry record
 - expiry urgency warnings as reset credits get closer to lapsing
 - a reset-use nudge based on remaining 5h/weekly capacity, reset timing, reset-credit expiry, and reset credits in the bank
 
@@ -28,7 +30,8 @@ No API key is required.
 
 ## Install
 
-1. Download `Codex Reset Watcher.zip` from the latest GitHub release.
+1. Download the versioned zip asset from the latest GitHub release, for example
+   `Codex.Reset.Watcher.v0.3.4.zip`.
 2. Unzip it.
 3. Drag `Codex Reset Watcher.app` into `/Applications`.
 4. Open it.
@@ -106,9 +109,6 @@ spacing values, radii, typography styles, and panel/row modifiers for menu and
 desktop UI changes so the app stays visually consistent. See
 [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) before making visual changes.
 
-See [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for the guardrails future visual
-updates should follow.
-
 ## What It Calls
 
 ```text
@@ -121,6 +121,10 @@ auth context per refresh, sends the saved bearer token in the `Authorization`
 header and, when available, the active account id in the `ChatGPT-Account-Id`
 header to those endpoints. It does not redeem resets, mutate account state, or
 store your token anywhere else.
+
+The app rejects non-exact endpoint URLs before sending a request. The trusted
+URLs must be HTTPS `chatgpt.com` endpoints on the known `/backend-api/wham/...`
+paths, with no query string, fragment, userinfo, or custom port.
 
 `/wham/usage` currently provides the 5-hour and weekly rate-limit windows. `/wham/rate-limit-reset-credits` provides detailed reset-credit expiry dates. These endpoints are internal and can change without notice.
 

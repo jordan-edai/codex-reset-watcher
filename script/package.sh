@@ -12,7 +12,7 @@ ZIP_PATH="$ROOT_DIR/dist/Codex Reset Watcher.zip"
 VERSION="$(/usr/bin/plutil -extract CFBundleShortVersionString raw -o - "$APP_BUNDLE/Contents/Info.plist")"
 VERSIONED_ZIP_PATH="$ROOT_DIR/dist/Codex.Reset.Watcher.v$VERSION.zip"
 
-rm -f "$ZIP_PATH" "$VERSIONED_ZIP_PATH"
+rm -f "$ZIP_PATH" "$ROOT_DIR"/dist/Codex.Reset.Watcher.v*.zip
 ditto -c -k --norsrc --keepParent "$APP_BUNDLE" "$ZIP_PATH"
 cp "$ZIP_PATH" "$VERSIONED_ZIP_PATH"
 

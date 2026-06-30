@@ -43,6 +43,20 @@ final class UsageNudgeTests: XCTestCase {
     }
 
     @MainActor
+    func testZeroFiveHourResetDoesNotSayInNow() {
+        let nudge = UsageNudge.make(
+            windows: [
+                window(kind: .fiveHour, remaining: 8, resetAfterSeconds: 0),
+                window(kind: .weekly, remaining: 45, resetAfterSeconds: 3 * 86_400)
+            ],
+            resetCount: 1
+        )
+
+        XCTAssertEqual(nudge.tier, .waitFiveHour)
+        XCTAssertEqual(nudge.detail, "5h resets now")
+    }
+
+    @MainActor
     func testLowFiveHourAndHealthyWeeklyWithLongWaitBecomesDeadlineCall() {
         let nudge = UsageNudge.make(
             windows: [

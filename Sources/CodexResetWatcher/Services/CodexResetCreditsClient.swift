@@ -5,6 +5,7 @@ struct CodexAPIClient: Sendable {
     var resetCreditsEndpoint: URL = URL(string: "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits")!
     var usageEndpoint: URL = URL(string: "https://chatgpt.com/backend-api/wham/usage")!
     var timeoutSeconds: TimeInterval = 20
+    var trustsEndpoint: @Sendable (URL) -> Bool = CodexAPIClient.isTrustedEndpoint
     var perform: @Sendable (URLRequest) async throws -> (Data, URLResponse) = {
         try await URLSession.shared.data(for: $0)
     }
@@ -49,6 +50,10 @@ struct CodexAPIClient: Sendable {
     }
 
     private func fetch<Response: Decodable>(_ responseType: Response.Type, from endpoint: URL, context: CodexAuthContext) async throws -> Response {
+        guard trustsEndpoint(endpoint) else {
+            throw CodexAPIError.untrustedEndpoint
+        }
+
         var request = URLRequest(url: endpoint)
         request.httpMethod = "GET"
         request.timeoutInterval = timeoutSeconds
@@ -82,6 +87,21 @@ struct CodexAPIClient: Sendable {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(Response.self, from: data)
+    }
+
+    static func isTrustedEndpoint(_ endpoint: URL) -> Bool {
+        guard endpoint.scheme?.lowercased() == "https",
+              endpoint.host?.lowercased() == "chatgpt.com",
+              endpoint.user == nil,
+              endpoint.password == nil,
+              endpoint.port == nil,
+              endpoint.query == nil,
+              endpoint.fragment == nil
+        else {
+            return false
+        }
+        return endpoint.path == "/backend-api/wham/usage"
+            || endpoint.path == "/backend-api/wham/rate-limit-reset-credits"
     }
 
     private func loadAuth() throws -> CodexAuth {
@@ -135,6 +155,7 @@ enum CodexAPIError: LocalizedError {
     case unexpectedContentType(String)
     case rateLimited(String?)
     case httpStatus(Int)
+    case untrustedEndpoint
 
     var errorDescription: String? {
         switch self {
@@ -158,6 +179,8 @@ enum CodexAPIError: LocalizedError {
                 return "Codex rejected the saved login. Open Codex Desktop and sign in again."
             }
             return "The Codex endpoint returned HTTP \(status)."
+        case .untrustedEndpoint:
+            return "Codex endpoint is not trusted."
         }
     }
 }

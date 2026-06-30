@@ -75,6 +75,8 @@ Menu bar dropdown:
 - Show cached snapshots in a compact `Cached snapshots` section.
 - Cached snapshot rows open the main window detail; they do not change the menu
   bar title.
+- Cached snapshot rows must reuse/focus the existing main window. Do not open a
+  fresh main window for each row click.
 
 Main window:
 
@@ -84,6 +86,8 @@ Main window:
 - Show the current detail layout for the selected account.
 - Provide `Forget` for cached accounts and `Clear cached` for all cached
   snapshots.
+- Keep stale cleanup discoverable with `Forget stale` for the selected stale
+  snapshot and `Clear stale` for stale-only bulk cleanup.
 
 ## Privacy And Release Requirements
 
@@ -101,6 +105,8 @@ Required tests:
 - stale-only cleanup that preserves fresh cached snapshots
 - persistence redaction
 - corrupt or old schema files
+- endpoint failures that preserve cached snapshots without rewriting them as
+  fresh empty active data
 
 Manual QA boundary:
 

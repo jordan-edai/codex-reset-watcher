@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-06-25
+Last updated: 2026-06-30
 
 ## Summary
 
@@ -17,13 +17,13 @@ https://github.com/jordan-edai/codex-reset-watcher
 Current release:
 
 ```text
-v0.3.3
+v0.3.3 latest shipped; v0.3.4 prepared in the current branch
 ```
 
 Latest tracked release state:
 
 ```text
-v0.3.3 stale-snapshot cleanup
+v0.3.4 audit hardening prepared, not tagged yet
 ```
 
 ## What Is Shipped
@@ -68,6 +68,16 @@ v0.3.3 stale-snapshot cleanup
 - Latest release is `v0.3.3`.
 - `v0.2.0` release asset cleanup was completed; the duplicate generic
   `Codex.Reset.Watcher.zip` was removed and the versioned zip was kept.
+- v0.3.4 audit fixes restore per-snapshot menu navigation, distinguish
+  cached last-seen limits from live limits, tighten endpoint decoding/trust
+  checks, sanitize live refresh errors, and avoid showing stale reset expiry rows
+  after reset-credit endpoint failures.
+- v0.3.4 release hygiene now verifies the release tag against the packaged
+  app version, strips local build paths from release binaries, checks the bundle
+  signature and zip integrity, and uploads the exact current versioned zip
+  instead of a wildcard.
+- v0.3.4 also shows explicit unavailable-expiry rows when Codex reports a higher
+  reset-credit count than it returns usable expiry rows for.
 - PR #1 shipped usage limits and reset nudges.
 - PR #2 shipped the weekly menu bar title.
 - PR #4 fixed the visible menu bar label and versioned release upload path.
@@ -102,8 +112,14 @@ v0.3.3 stale-snapshot cleanup
   linked accounts or profiles. They are local last-seen records only.
 - Stale snapshots must have an obvious cleanup path. Preserve `Clear stale`
   controls and the `Forget stale` single-record action when changing this UI.
+- Counts must stay honest. If Codex reports banked resets without usable expiry
+  data, the UI should show missing-expiry rows instead of silently hiding them.
 - Persisted snapshots must remain derived-only and must not include tokens, raw
   auth, raw API responses, full account IDs, user IDs, or reset credit IDs.
+- If both live endpoints fail, do not rewrite an existing cached snapshot with
+  empty fresh data. Preserve the last known cached snapshot as cached.
+- Endpoint trust checks should remain exact: HTTPS, `chatgpt.com`, known `/wham`
+  paths, and no userinfo, query, fragment, or custom port.
 - Use [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) as the future-maintainer guardrail
   for menu and desktop visual changes.
 - Use generated visual assets only when they are checked in and documented as
@@ -183,3 +199,21 @@ unless the user explicitly asks.
 - Add a clearer error state when Codex auth exists but the internal endpoint
   shape changes.
 - Add optional user nicknames for cached accounts.
+
+## Latest Local Verification
+
+The `v0.3.4` branch was locally verified on 2026-06-30 with:
+
+```bash
+swift test --scratch-path /tmp/codex-reset-watcher-test --jobs 1
+CONFIGURATION=release ./script/package.sh
+CONFIGURATION=release ./script/build_and_run.sh --verify
+plutil -extract CFBundleShortVersionString raw -o - \
+  "dist/Codex Reset Watcher.app/Contents/Info.plist"
+codesign --verify --deep --strict "dist/Codex Reset Watcher.app"
+unzip -t "dist/Codex.Reset.Watcher.v0.3.4.zip"
+```
+
+Computer Use QA checked the packaged app's desktop active view, cached snapshot
+view, stale cleanup controls, real menu bar title, dropdown Week/5h toggle, and
+cached snapshot row navigation.

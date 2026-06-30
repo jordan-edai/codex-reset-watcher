@@ -11,6 +11,8 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Canonical local path: `/Users/everydayai/Documents/!Codex Projects/Rate Refresher Project`
 - Compatibility path: `/Users/everydayai/Documents/Rate Refresher Project`
 - Latest shipped release: `v0.3.3`
+- Current branch prepares `v0.3.4` audit hardening; do not call it shipped
+  until the PR is merged, `main` CI passes, and the tag/release exists.
 - Check `git log --oneline --decorate -5` for the current `main` commit; this
   note tracks the repo state through the `v0.3.3` stale-snapshot cleanup release.
 - App bundle version is set in `script/build_and_run.sh`.
@@ -42,6 +44,9 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Visual styling should flow through `CodexPalette` and `CodexStyle`. Prefer
   shared spacing, radius, type, row, and panel tokens over one-off view-local
   constants so the menu dropdown and desktop window stay visually aligned.
+- Routine app surfaces should stay light. Avoid smoky gray, dark tinted row
+  fills, and dark terminal-block branding for normal states; use icons, borders,
+  badges, and meters for emphasis, and reserve colored fills for warning/danger.
 - Read `DESIGN_SYSTEM.md` before making visual changes.
 - The menu dropdown uses fixed icon, content, metric, and date columns. Preserve
   that rhythm when adding rows so labels do not bleed into popover edges.
@@ -77,6 +82,10 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
   that the previous login appears only as a cached snapshot.
 - Reset count should use server `available_count` when provided so malformed
   detail rows do not undercount banked resets.
+- If `available_count` is higher than the usable expiry rows returned by Codex,
+  show explicit missing-expiry rows rather than hiding the extra banked resets.
+- Trusted Codex endpoint checks should stay exact: HTTPS, `chatgpt.com`, known
+  `/backend-api/wham/...` path, and no userinfo, query, fragment, or custom port.
 
 ## Git And Workspace Rules
 
@@ -129,3 +138,5 @@ plutil -extract CFBundleShortVersionString raw -o - \
 8. Tag the release, for example `v0.2.2`.
 9. Upload a versioned zip only, for example
    `Codex.Reset.Watcher.v0.2.2.zip`.
+10. Inspect packaged release strings for real emails, full account IDs,
+    JWT-looking strings, token prefixes, local auth paths, and raw endpoint JSON.

@@ -13,7 +13,7 @@ struct ResetCreditsResponse: Decodable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         credits = (try container.decodeIfPresent([FailableDecodable<ResetCredit>].self, forKey: .credits) ?? [])
             .compactMap(\.value)
-        availableCount = try container.decodeIfPresent(Int.self, forKey: .availableCount)
+        availableCount = container.decodeFlexibleIntIfPresent(forKey: .availableCount)
             ?? credits.filter(\.isAvailable).count
     }
 }

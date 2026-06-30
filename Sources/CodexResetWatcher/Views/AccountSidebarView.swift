@@ -68,6 +68,7 @@ struct AccountSidebarView: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(row.isStale ? CodexPalette.warningOrange : CodexPalette.secondaryText)
                 .frame(width: 18)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.label)
@@ -82,4 +83,5 @@ struct AccountSidebarView: View {
         }
         .padding(.vertical, 2)
     }
+
 }

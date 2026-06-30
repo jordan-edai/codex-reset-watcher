@@ -16,13 +16,51 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Swift version
+        run: swift --version
+
+      - name: Test
+        run: swift test --jobs 1
+
       - name: Package app bundle
-        run: ./script/package.sh
+        run: CONFIGURATION=release ./script/package.sh
+
+      - name: Verify release artifact
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tags must use vX.Y.Z format: $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          APP_BUNDLE="dist/Codex Reset Watcher.app"
+          INFO_PLIST="$APP_BUNDLE/Contents/Info.plist"
+
+          test -d "$APP_BUNDLE"
+          test -f "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
+          test -f "$APP_BUNDLE/Contents/Resources/UsageHeader.png"
+          /usr/bin/plutil -lint "$INFO_PLIST"
+
+          APP_VERSION="$(/usr/bin/plutil -extract CFBundleShortVersionString raw -o - "$INFO_PLIST")"
+          if [[ "$APP_VERSION" != "$TAG_VERSION" ]]; then
+            echo "Tag version $TAG_VERSION does not match app version $APP_VERSION" >&2
+            exit 1
+          fi
+
+          RELEASE_ZIP="dist/Codex.Reset.Watcher.v${APP_VERSION}.zip"
+          test -f "$RELEASE_ZIP"
+          /usr/bin/codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
+          zipinfo -1 "$RELEASE_ZIP" | grep -q "Codex Reset Watcher.app/Contents/MacOS/CodexResetWatcher"
+          unzip -t "$RELEASE_ZIP"
+
+          echo "RELEASE_ZIP=$RELEASE_ZIP" >> "$GITHUB_ENV"
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/Codex.Reset.Watcher.v*.zip
+          files: ${{ env.RELEASE_ZIP }}
           body_path: CHANGELOG.md
           draft: false
           prerelease: false

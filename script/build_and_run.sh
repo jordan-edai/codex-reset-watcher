@@ -5,7 +5,7 @@ MODE="${1:-run}"
 PRODUCT_NAME="CodexResetWatcher"
 APP_NAME="Codex Reset Watcher"
 BUNDLE_ID="com.jordanedai.codex-reset-watcher"
-VERSION="0.3.3"
+VERSION="0.3.4"
 BUILD_NUMBER="1"
 MIN_SYSTEM_VERSION="14.0"
 CONFIGURATION="${CONFIGURATION:-debug}"
@@ -42,6 +42,9 @@ rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_MACOS" "$APP_RESOURCES"
 cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
+if [[ "$CONFIGURATION" == "release" ]]; then
+  /usr/bin/strip -S -x "$APP_BINARY"
+fi
 if [[ -f "$APP_ICON" ]]; then
   cp "$APP_ICON" "$APP_RESOURCES/AppIcon.icns"
 fi
