@@ -119,6 +119,37 @@ final class DecodeTests: XCTestCase {
         XCTAssertEqual(seconds.resetDate, milliseconds.resetDate)
     }
 
+    func testUsageResetAtRejectsImplausibleEpochs() {
+        let absurd = UsageLimitWindow(
+            usedPercent: 10,
+            limitWindowSeconds: 18_000,
+            resetAfterSeconds: nil,
+            resetAt: 1e100
+        )
+        let microseconds = UsageLimitWindow(
+            usedPercent: 10,
+            limitWindowSeconds: 18_000,
+            resetAfterSeconds: nil,
+            resetAt: 1_800_000_000_000_000
+        )
+        let tooOld = UsageLimitWindow(
+            usedPercent: 10,
+            limitWindowSeconds: 18_000,
+            resetAfterSeconds: nil,
+            resetAt: 1
+        )
+
+        XCTAssertNil(absurd.resetDate)
+        XCTAssertNil(microseconds.resetDate)
+        XCTAssertNil(tooOld.resetDate)
+    }
+
+    func testAccountDisplayLabelDoesNotLeakRawAccountSuffix() {
+        let identity = CodexAccountIdentity(accountId: "acct_sensitive_1234567890", email: nil, name: nil)
+
+        XCTAssertEqual(identity.displayLabel, "Codex account")
+    }
+
     @MainActor
     func testWeekdayCompactIncludesDayOfWeek() {
         var components = DateComponents()
@@ -402,6 +433,130 @@ final class CodexAPIClientTests: XCTestCase {
         XCTAssertEqual(store.usageWindow(for: .fiveHour)?.id, "five-hour")
         XCTAssertEqual(store.menuBarTitle(for: .weekly), "63% | Sunday")
         XCTAssertEqual(store.menuBarTitle(for: .fiveHour), "29% | 9:50 PM")
+    }
+
+    @MainActor
+    func testUsageWindowClassificationDoesNotInventKnownWindowsWithoutDuration() async throws {
+        let client = try makeClient { request in
+            switch request.url?.path {
+            case "/backend-api/wham/rate-limit-reset-credits":
+                let body = #"{"available_count":0,"credits":[]}"#.data(using: .utf8)!
+                return (body, testHTTPResponse(status: 200, contentType: "application/json"))
+
+            case "/backend-api/wham/usage":
+                let body = """
+                {
+                  "plan_type": "pro",
+                  "rate_limit": {
+                    "primary_window": {
+                      "used_percent": 20,
+                      "reset_after_seconds": 3600
+                    },
+                    "secondary_window": {
+                      "used_percent": 40,
+                      "reset_after_seconds": 7200
+                    }
+                  }
+                }
+                """.data(using: .utf8)!
+                return (body, testHTTPResponse(status: 200, contentType: "application/json"))
+
+            default:
+                throw TestError.unexpectedEndpoint
+            }
+        }
+        let store = ResetCreditsStore(client: client)
+
+        await store.refresh()
+
+        XCTAssertEqual(store.usageWindows.map(\.kind), [.generic, .generic])
+        XCTAssertEqual(store.usageWindows.map(\.id), ["primary", "secondary"])
+        XCTAssertNil(store.usageWindow(for: .weekly))
+        XCTAssertNil(store.usageWindow(for: .fiveHour))
+    }
+
+    @MainActor
+    func testDuplicateWindowDurationKeepsOneKnownWindow() async throws {
+        let client = try makeClient { request in
+            switch request.url?.path {
+            case "/backend-api/wham/rate-limit-reset-credits":
+                let body = #"{"available_count":0,"credits":[]}"#.data(using: .utf8)!
+                return (body, testHTTPResponse(status: 200, contentType: "application/json"))
+
+            case "/backend-api/wham/usage":
+                let body = """
+                {
+                  "plan_type": "pro",
+                  "rate_limit": {
+                    "primary_window": {
+                      "used_percent": 20,
+                      "limit_window_seconds": 18000,
+                      "reset_after_seconds": 3600
+                    },
+                    "secondary_window": {
+                      "used_percent": 40,
+                      "limit_window_seconds": 18000,
+                      "reset_after_seconds": 7200
+                    }
+                  }
+                }
+                """.data(using: .utf8)!
+                return (body, testHTTPResponse(status: 200, contentType: "application/json"))
+
+            default:
+                throw TestError.unexpectedEndpoint
+            }
+        }
+        let store = ResetCreditsStore(client: client)
+
+        await store.refresh()
+
+        XCTAssertEqual(store.usageWindows.map(\.kind), [.fiveHour, .generic])
+        XCTAssertEqual(store.usageWindows.map(\.id), ["five-hour", "secondary"])
+        XCTAssertEqual(store.usageWindow(for: .fiveHour)?.remainingPercent, 80)
+    }
+
+    @MainActor
+    func testLimitReachedResponseDrivesBlockedNudge() async throws {
+        let client = try makeClient { request in
+            switch request.url?.path {
+            case "/backend-api/wham/rate-limit-reset-credits":
+                let body = #"{"available_count":1,"credits":[]}"#.data(using: .utf8)!
+                return (body, testHTTPResponse(status: 200, contentType: "application/json"))
+
+            case "/backend-api/wham/usage":
+                let body = """
+                {
+                  "plan_type": "pro",
+                  "rate_limit": {
+                    "allowed": false,
+                    "primary_window": {
+                      "used_percent": 20,
+                      "limit_window_seconds": 18000,
+                      "reset_after_seconds": 3600
+                    },
+                    "secondary_window": {
+                      "used_percent": 40,
+                      "limit_window_seconds": 604800,
+                      "reset_after_seconds": 259200
+                    }
+                  }
+                }
+                """.data(using: .utf8)!
+                return (body, testHTTPResponse(status: 200, contentType: "application/json"))
+
+            default:
+                throw TestError.unexpectedEndpoint
+            }
+        }
+        let store = ResetCreditsStore(client: client)
+
+        await store.refresh()
+
+        XCTAssertTrue(store.usageWindows.allSatisfy(\.limitReached))
+        XCTAssertEqual(store.nudge.tier, .blocked)
+        XCTAssertEqual(store.nudge.title, "Blocked now")
+        XCTAssertEqual(store.statusSymbolName, "exclamationmark.octagon")
     }
 
     private func makeClient(

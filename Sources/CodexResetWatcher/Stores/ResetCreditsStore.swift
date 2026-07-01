@@ -109,9 +109,12 @@ final class ResetCreditsStore: ObservableObject {
         if !errorMessages.isEmpty, usage == nil, credits.isEmpty {
             return "exclamationmark.triangle"
         }
+        if usageWindows.contains(where: \.limitReached) {
+            return "exclamationmark.octagon"
+        }
 
         switch nudge.tier {
-        case .spend, .expiringReset, .deadline, .useIfBlocked:
+        case .spend, .blocked, .expiringReset, .deadline, .useIfBlocked:
             return "bolt.circle"
         case .waitFiveHour:
             return "hourglass.circle"
@@ -127,7 +130,16 @@ final class ResetCreditsStore: ObservableObject {
     }
 
     var nudge: UsageNudge {
-        UsageNudge.make(
+        if usage == nil, !errorMessages.isEmpty {
+            return UsageNudge(
+                tier: .unavailable,
+                title: "Sign in to Codex",
+                message: "Open Codex Desktop, sign in, then refresh to load live usage windows.",
+                detail: "No live data"
+            )
+        }
+
+        return UsageNudge.make(
             windows: usageWindows,
             resetCount: availableCount,
             resetUrgencies: resetUrgencies(for: availableCreditDisplays)
@@ -291,8 +303,10 @@ final class ResetCreditsStore: ObservableObject {
             isRefreshing = false
         }
 
-        let creditsResult = await fetchResetCreditsResult(context: context)
-        let usageResult = await fetchUsageResult(context: context)
+        async let creditsTask = fetchResetCreditsResult(context: context)
+        async let usageTask = fetchUsageResult(context: context)
+        let creditsResult = await creditsTask
+        let usageResult = await usageTask
         let refreshedAt = Date()
 
         if case let .changed(latestContext) = activeAccountChange(from: context) {
@@ -330,8 +344,8 @@ final class ResetCreditsStore: ObservableObject {
         accountIdentity = CodexAccountIdentity(accountId: nil, email: nil, name: nil)
         usageErrorMessage = refreshErrorMessage(area: "active account", error: error, hasPriorData: false)
         creditsErrorMessage = nil
-        lastChecked = Date()
-        selectedAccount = selectedAccount == .active ? .active : selectedAccount
+        lastChecked = nil
+        selectedAccount = .active
     }
 
     private func prepareForActiveContext(_ context: CodexAuthContext) {
@@ -620,11 +634,24 @@ final class ResetCreditsStore: ObservableObject {
         }
 
         var windows: [UsageLimitDisplay] = []
+        var seenKinds: Set<UsageLimitDisplay.Kind> = []
         if let primary = rateLimit.primaryWindow {
-            windows.append(display(for: primary, fallbackID: "primary", limitReached: rateLimit.limitReached == true))
+            appendDisplay(
+                for: primary,
+                fallbackID: "primary",
+                limitReached: rateLimit.limitReached == true || rateLimit.allowed == false,
+                to: &windows,
+                seenKinds: &seenKinds
+            )
         }
         if let secondary = rateLimit.secondaryWindow {
-            windows.append(display(for: secondary, fallbackID: "secondary", limitReached: rateLimit.limitReached == true))
+            appendDisplay(
+                for: secondary,
+                fallbackID: "secondary",
+                limitReached: rateLimit.limitReached == true || rateLimit.allowed == false,
+                to: &windows,
+                seenKinds: &seenKinds
+            )
         }
         return windows
     }
@@ -789,19 +816,38 @@ final class ResetCreditsStore: ObservableObject {
         return "\(existing) \(message)"
     }
 
+    private func appendDisplay(
+        for window: UsageLimitWindow,
+        fallbackID: String,
+        limitReached: Bool,
+        to windows: inout [UsageLimitDisplay],
+        seenKinds: inout Set<UsageLimitDisplay.Kind>
+    ) {
+        var display = display(for: window, fallbackID: fallbackID, limitReached: limitReached)
+        if display.kind != .generic, seenKinds.contains(display.kind) {
+            display = genericDisplay(for: window, fallbackID: fallbackID, limitReached: limitReached)
+        }
+        seenKinds.insert(display.kind)
+        windows.append(display)
+    }
+
     private func display(for window: UsageLimitWindow, fallbackID: String, limitReached: Bool) -> UsageLimitDisplay {
-        let seconds = window.limitWindowSeconds ?? 0
+        guard let seconds = window.limitWindowSeconds else {
+            return genericDisplay(for: window, fallbackID: fallbackID, limitReached: limitReached)
+        }
         if (14_400...21_600).contains(seconds) {
             return UsageLimitDisplay(id: "five-hour", kind: .fiveHour, title: "5h limit", window: window, limitReached: limitReached)
         }
         if (518_400...864_000).contains(seconds) {
             return UsageLimitDisplay(id: "weekly", kind: .weekly, title: "Weekly limit", window: window, limitReached: limitReached)
         }
-        if fallbackID == "primary" {
-            return UsageLimitDisplay(id: "five-hour", kind: .fiveHour, title: "5h limit", window: window, limitReached: limitReached)
-        }
-        if fallbackID == "secondary" {
-            return UsageLimitDisplay(id: "weekly", kind: .weekly, title: "Weekly limit", window: window, limitReached: limitReached)
+        return genericDisplay(for: window, fallbackID: fallbackID, limitReached: limitReached)
+    }
+
+    private func genericDisplay(for window: UsageLimitWindow, fallbackID: String, limitReached: Bool) -> UsageLimitDisplay {
+        guard let seconds = window.limitWindowSeconds else {
+            let title = fallbackID == "primary" ? "Primary limit" : "Secondary limit"
+            return UsageLimitDisplay(id: fallbackID, kind: .generic, title: title, window: window, limitReached: limitReached)
         }
         return UsageLimitDisplay(id: fallbackID, kind: .generic, title: DateFormatting.windowTitle(seconds: seconds), window: window, limitReached: limitReached)
     }

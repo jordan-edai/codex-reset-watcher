@@ -70,7 +70,7 @@ struct AccountUsageWindowSnapshot: Codable, Identifiable, Sendable, Equatable {
         limitWindowSeconds = display.window.limitWindowSeconds
         resetDate = display.window.resetDate
         if let resetDate = display.window.resetDate {
-            resetAfterSeconds = max(0, Int(resetDate.timeIntervalSince(capturedAt)))
+            resetAfterSeconds = safeNonnegativeSeconds(resetDate.timeIntervalSince(capturedAt))
         } else {
             resetAfterSeconds = display.window.resetAfterSeconds
         }
@@ -79,9 +79,9 @@ struct AccountUsageWindowSnapshot: Codable, Identifiable, Sendable, Equatable {
     func display(cachedAt: Date, now: Date = Date()) -> UsageLimitDisplay {
         let dynamicResetAfter: Int?
         if let resetDate {
-            dynamicResetAfter = max(0, Int(resetDate.timeIntervalSince(now)))
+            dynamicResetAfter = safeNonnegativeSeconds(resetDate.timeIntervalSince(now))
         } else if let resetAfterSeconds {
-            let elapsed = max(0, Int(now.timeIntervalSince(cachedAt)))
+            let elapsed = safeNonnegativeSeconds(now.timeIntervalSince(cachedAt)) ?? 0
             dynamicResetAfter = max(0, resetAfterSeconds - elapsed)
         } else {
             dynamicResetAfter = nil
@@ -184,7 +184,11 @@ struct CodexAccountSnapshot: Codable, Identifiable, Sendable, Equatable {
     }
 
     func isStale(now: Date = Date()) -> Bool {
-        usageWindows.contains { $0.hasResetPassed(cachedAt: lastChecked, now: now) }
+        if usageWindows.isEmpty, resetExpiries.isEmpty {
+            return true
+        }
+        return usageWindows.contains { $0.hasResetPassed(cachedAt: lastChecked, now: now) }
+            || resetExpiries.contains { $0 <= now }
     }
 
     @MainActor
@@ -209,6 +213,20 @@ struct CodexAccountSnapshot: Codable, Identifiable, Sendable, Equatable {
         }
         return hasAnySuccess ? .partial : .error
     }
+}
+
+private func safeNonnegativeSeconds(_ interval: TimeInterval) -> Int? {
+    let seconds = floor(interval)
+    guard seconds.isFinite else {
+        return nil
+    }
+    if seconds <= 0 {
+        return 0
+    }
+    guard let value = Int(exactly: seconds) else {
+        return nil
+    }
+    return value
 }
 
 extension ResetCredit {

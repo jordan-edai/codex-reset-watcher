@@ -3,6 +3,7 @@ import Foundation
 struct UsageNudge: Sendable {
     enum Tier: Sendable {
         case spend
+        case blocked
         case expiringReset
         case deadline
         case useIfBlocked
@@ -24,6 +25,27 @@ struct UsageNudge: Sendable {
         resetCount: Int,
         resetUrgencies: [ResetExpiryUrgency] = []
     ) -> UsageNudge {
+        if let blockedWindow = windows.first(where: \.limitReached) {
+            if resetCount > 0 {
+                return UsageNudge(
+                    tier: .blocked,
+                    title: "Blocked now",
+                    message: "Codex says \(blockedWindow.title.lowercased()) is at the wall. Spend a reset if this work matters now.",
+                    detail: "\(resetCount) \(resetCount == 1 ? "reset" : "resets") banked"
+                )
+            }
+
+            let detail = blockedWindow.window.resetAfterSeconds.map {
+                resetDetail(prefix: blockedWindow.title, seconds: $0)
+            } ?? "No reset banked"
+            return UsageNudge(
+                tier: .blocked,
+                title: "Blocked, wait it out",
+                message: "Codex says this limit is reached and there is no banked reset to spend.",
+                detail: detail
+            )
+        }
+
         if resetCount > 0, resetUrgencies.contains(where: { $0.level == .urgent }) {
             return UsageNudge(
                 tier: .expiringReset,
@@ -39,7 +61,7 @@ struct UsageNudge: Sendable {
             return UsageNudge(
                 tier: .unavailable,
                 title: "Waiting on the meters",
-                message: "Reset stash loaded. Codex usage windows are still warming up.",
+                message: "No live usage windows yet. Refresh again after Codex finishes warming up.",
                 detail: "Try again soon"
             )
         }

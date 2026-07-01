@@ -110,6 +110,45 @@ final class AccountSnapshotPersistenceTests: XCTestCase {
         XCTAssertTrue(snapshot.isStale(now: Date(timeIntervalSince1970: 1_800_000_101)))
     }
 
+    func testCachedSnapshotWithoutUsageOrResetSignalsIsStale() throws {
+        let snapshot = CodexAccountSnapshot(
+            id: AccountSnapshotID(rawValue: "empty"),
+            displayLabel: "Cached",
+            planLabel: "Pro",
+            lastChecked: Date(timeIntervalSince1970: 1_800_000_000),
+            usageWindows: [],
+            resetCount: 0,
+            resetExpiries: [],
+            status: .ok,
+            errors: []
+        )
+
+        XCTAssertTrue(snapshot.isStale(now: Date(timeIntervalSince1970: 1_800_000_010)))
+    }
+
+    func testSnapshotSkipsImplausibleResetDateWithoutCrashing() throws {
+        let capturedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let window = AccountUsageWindowSnapshot(
+            display: UsageLimitDisplay(
+                id: "five-hour",
+                kind: .fiveHour,
+                title: "5h limit",
+                window: UsageLimitWindow(
+                    usedPercent: 50,
+                    limitWindowSeconds: 18_000,
+                    resetAfterSeconds: nil,
+                    resetAt: 1e100
+                ),
+                limitReached: false
+            ),
+            capturedAt: capturedAt
+        )
+
+        XCTAssertNil(window.resetDate)
+        XCTAssertNil(window.resetAfterSeconds)
+        XCTAssertFalse(window.hasResetPassed(cachedAt: capturedAt, now: capturedAt.addingTimeInterval(1)))
+    }
+
     func testDurationOnlyCachedSnapshotAgesFromCaptureTime() throws {
         let capturedAt = Date(timeIntervalSince1970: 1_800_000_000)
         let window = AccountUsageWindowSnapshot(
@@ -327,6 +366,9 @@ final class AccountSnapshotStoreTests: XCTestCase {
         XCTAssertEqual(store.cachedSnapshots.count, 1)
         XCTAssertEqual(store.usageWindows.count, 0)
         XCTAssertEqual(store.availableCount, 0)
+        XCTAssertNil(store.lastChecked)
+        XCTAssertEqual(store.selectedAccount, .active)
+        XCTAssertEqual(store.nudge.title, "Sign in to Codex")
         let message = store.errorMessages.joined(separator: " ")
         XCTAssertTrue(message.contains("active account"))
         XCTAssertFalse(message.contains(harness.authURL.path))

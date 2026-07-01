@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.5 - 2026-06-30
+
+- Treats Codex `allowed: false` / `limit_reached` usage responses as a first-class
+  blocked state in the nudge logic, menu dropdown, desktop usage cards, and
+  status icon instead of falling back to ordinary capacity advice.
+- Stops guessing 5-hour versus weekly windows from endpoint order when
+  `limit_window_seconds` is missing, and falls back to generic labeled usage
+  rows until Codex returns a trustworthy duration.
+- Hardens cached snapshot date math against implausible reset epochs and marks
+  snapshots with no usage or reset signals as stale.
+- Keeps missing-auth refreshes from stamping a fresh `last checked` time or
+  leaving the UI selected on a cached snapshot that cannot be refreshed live.
+- Removes the raw account-id suffix fallback from account labels when Codex does
+  not provide an email or name.
+
 ## 0.3.4 - 2026-06-30
 
 - Restores compact per-snapshot rows in the menu dropdown so cached snapshots

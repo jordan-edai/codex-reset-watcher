@@ -17,14 +17,24 @@ https://github.com/jordan-edai/codex-reset-watcher
 Current release:
 
 ```text
-v0.3.4
+v0.3.5
 ```
 
 Latest tracked release state:
 
 ```text
-v0.3.4 audit hardening
+v0.3.5 audit follow-up hardening
 ```
+
+Latest local release branch:
+
+```text
+codex/audit-followup-hardening
+```
+
+The v0.3.5 audit follow-up added blocked-limit handling, safer reset-date math,
+generic usage-window fallbacks when Codex omits window durations, and clearer
+missing-auth state handling.
 
 ## What Is Shipped
 
@@ -64,12 +74,16 @@ v0.3.4 audit hardening
   a light shared UI system, added explicit missing-expiry rows when server counts
   exceed usable expiry records, tightened release packaging checks, and refreshed
   maintainer docs.
+- `v0.3.5`: treats blocked usage responses as first-class UI/nudge states,
+  stops guessing 5h/weekly windows when duration fields are missing or
+  duplicated, guards implausible reset epochs, avoids fresh timestamps on
+  missing-auth refreshes, and removes raw account-id suffix label fallbacks.
 
 ## Current GitHub State
 
 - Repo is public.
 - Repo description: `Local-first macOS menu bar app for Codex usage limits and reset credits.`
-- Latest release is `v0.3.4`.
+- Latest release is `v0.3.5`.
 - `v0.2.0` release asset cleanup was completed; the duplicate generic
   `Codex.Reset.Watcher.zip` was removed and the versioned zip was kept.
 - v0.3.4 audit fixes restored per-snapshot menu navigation, distinguish
@@ -84,6 +98,11 @@ v0.3.4 audit hardening
   reset-credit count than it returns usable expiry rows for.
 - Release `v0.3.4` was published on 2026-06-30 with
   `Codex.Reset.Watcher.v0.3.4.zip`.
+- v0.3.5 audit follow-up fixes make blocked limits visible across the menu and
+  desktop UI, keep unknown usage windows generic instead of guessed, harden
+  reset-date conversion, and clarify no-auth refresh state.
+- Release `v0.3.5` was published on 2026-06-30 with
+  `Codex.Reset.Watcher.v0.3.5.zip`.
 - PR #1 shipped usage limits and reset nudges.
 - PR #2 shipped the weekly menu bar title.
 - PR #4 fixed the visible menu bar label and versioned release upload path.
@@ -120,6 +139,13 @@ v0.3.4 audit hardening
   controls and the `Forget stale` single-record action when changing this UI.
 - Counts must stay honest. If Codex reports banked resets without usable expiry
   data, the UI should show missing-expiry rows instead of silently hiding them.
+- If Codex reports `allowed: false` or `limit_reached`, show a blocked state
+  even when the remaining percentage fields still look nonzero.
+- Do not infer 5-hour or weekly windows from response order alone. When
+  `limit_window_seconds` is missing or duplicates an existing known window,
+  show a generic usage row rather than presenting guessed 5h/weekly data.
+- Treat implausible `reset_at` values as missing data. Reset-date math must
+  stay bounded and non-crashing because these are unofficial internal endpoints.
 - Persisted snapshots must remain derived-only and must not include tokens, raw
   auth, raw API responses, full account IDs, user IDs, or reset credit IDs.
 - If both live endpoints fail, do not rewrite an existing cached snapshot with
@@ -208,17 +234,22 @@ unless the user explicitly asks.
 
 ## Latest Local Verification
 
-The `v0.3.4` branch was locally verified on 2026-06-30 with:
+The `v0.3.5` branch was locally verified on 2026-06-30 with:
 
 ```bash
 swift test --scratch-path /tmp/codex-reset-watcher-test --jobs 1
+git diff --check
 CONFIGURATION=release ./script/package.sh
 CONFIGURATION=release ./script/build_and_run.sh --verify
 plutil -extract CFBundleShortVersionString raw -o - \
   "dist/Codex Reset Watcher.app/Contents/Info.plist"
 codesign --verify --deep --strict "dist/Codex Reset Watcher.app"
-unzip -t "dist/Codex.Reset.Watcher.v0.3.4.zip"
+unzip -t "dist/Codex.Reset.Watcher.v0.3.5.zip"
+strings "dist/Codex Reset Watcher.app/Contents/MacOS/CodexResetWatcher" | rg \
+  "youreverydayai|everydayai|acct_|user_|credit-full|eyJ|access_token|refresh_token|id_token|auth\\.json|rate_limit"
 ```
+
+The final string scan returned no matches.
 
 Computer Use QA checked the packaged app's desktop active view, cached snapshot
 view, stale cleanup controls, real menu bar title, dropdown Week/5h toggle, and

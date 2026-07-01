@@ -64,9 +64,9 @@ enum CodexTone {
 
     var badgeForeground: Color {
         switch self {
-        case .attention:
+        case .attention, .warning:
             return .black.opacity(0.82)
-        case .success, .warning, .danger:
+        case .success, .danger:
             return .white
         case .neutral, .selected, .muted:
             return CodexPalette.primaryText

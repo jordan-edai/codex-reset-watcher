@@ -17,6 +17,9 @@ struct CodexRateLimit: Decodable, Sendable {
 }
 
 struct UsageLimitWindow: Decodable, Sendable {
+    private static let earliestPlausibleResetEpoch: TimeInterval = 1_577_836_800 // 2020-01-01
+    private static let latestPlausibleResetEpoch: TimeInterval = 4_102_444_800 // 2100-01-01
+
     let usedPercent: Int?
     let limitWindowSeconds: Int?
     let resetAfterSeconds: Int?
@@ -61,6 +64,11 @@ struct UsageLimitWindow: Decodable, Sendable {
             return nil
         }
         let seconds = resetAt > 10_000_000_000 ? resetAt / 1_000 : resetAt
+        guard seconds.isFinite,
+              (Self.earliestPlausibleResetEpoch...Self.latestPlausibleResetEpoch).contains(seconds)
+        else {
+            return nil
+        }
         return Date(timeIntervalSince1970: seconds)
     }
 }
@@ -79,7 +87,7 @@ struct ResetCreditCount: Decodable, Sendable {
 }
 
 struct UsageLimitDisplay: Identifiable, Sendable {
-    enum Kind: Sendable {
+    enum Kind: Sendable, Hashable {
         case fiveHour
         case weekly
         case generic
