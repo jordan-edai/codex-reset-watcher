@@ -22,9 +22,6 @@ struct CodexAccountIdentity: Sendable, Equatable {
         if let name = clean(name) {
             return name
         }
-        if let accountId = clean(accountId) {
-            return "Codex account \(accountId.suffix(6))"
-        }
         return "Codex account"
     }
 

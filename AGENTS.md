@@ -10,9 +10,9 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Public GitHub repo: `https://github.com/jordan-edai/codex-reset-watcher`
 - Canonical local path: `/Users/everydayai/Documents/!Codex Projects/Rate Refresher Project`
 - Compatibility path: `/Users/everydayai/Documents/Rate Refresher Project`
-- Latest shipped release: `v0.3.4`
+- Latest shipped release: `v0.3.5`
 - Check `git log --oneline --decorate -5` for the current `main` commit; this
-  note tracks the repo state through the `v0.3.4` audit-hardening release.
+  note tracks the repo state through the `v0.3.5` audit follow-up release.
 - App bundle version is set in `script/build_and_run.sh`.
 
 ## Product Decisions
@@ -82,6 +82,17 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
   detail rows do not undercount banked resets.
 - If `available_count` is higher than the usable expiry rows returned by Codex,
   show explicit missing-expiry rows rather than hiding the extra banked resets.
+- Treat Codex `allowed: false` / `limit_reached` usage responses as blocked
+  even if the percentage fields still decode. Blocked is more urgent than
+  normal reset-advice nudges.
+- Do not infer `5h limit` or `Weekly limit` from endpoint order when
+  `limit_window_seconds` is missing. Use generic `Primary limit` /
+  `Secondary limit` rows until Codex returns a trustworthy duration.
+- If Codex returns duplicate known window durations, keep the first known
+  window and downgrade the duplicate to a generic row so the UI does not show
+  two weekly or two 5h cards.
+- Guard `reset_at` and reset-duration math. Implausible epochs, infinities,
+  and overflowing intervals should become missing timing data, not crashes.
 - Trusted Codex endpoint checks should stay exact: HTTPS, `chatgpt.com`, known
   `/backend-api/wham/...` path, and no userinfo, query, fragment, or custom port.
 

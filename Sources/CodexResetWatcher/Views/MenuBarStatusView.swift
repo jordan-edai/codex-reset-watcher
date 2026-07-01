@@ -140,7 +140,7 @@ struct MenuBarStatusView: View {
         return HStack(alignment: .center, spacing: CodexStyle.Spacing.rowGap) {
             CodexIconBadge(
                 systemName: window.kind == .weekly ? "calendar" : "clock",
-                tone: CodexTone.usage(remainingPercent: window.remainingPercent),
+                tone: limitTone(window),
                 size: 24,
                 symbolSize: CodexStyle.Icon.menu
             )
@@ -150,7 +150,7 @@ struct MenuBarStatusView: View {
                 Text(window.title)
                     .font(CodexStyle.Typography.menuRowTitle)
                     .lineLimit(1)
-                Text(menuBarMetric.matches(window.kind) ? "Menu bar · \(selectedResetText(window))" : resetText(window))
+                Text(limitSubtitle(window))
                     .font(CodexStyle.Typography.menuRowMeta)
                     .foregroundStyle(CodexPalette.secondaryText)
                     .lineLimit(1)
@@ -159,7 +159,7 @@ struct MenuBarStatusView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .layoutPriority(1)
 
-            Text(remainingText(window.remainingPercent))
+            Text(limitMetricText(window))
                 .font(CodexStyle.Typography.menuMetric)
                 .monospacedDigit()
                 .lineLimit(1)
@@ -458,7 +458,7 @@ struct MenuBarStatusView: View {
         switch store.nudge.tier {
         case .spend:
             return .success
-        case .expiringReset:
+        case .blocked, .expiringReset:
             return .danger
         case .deadline, .useIfBlocked:
             return .warning
@@ -494,7 +494,31 @@ struct MenuBarStatusView: View {
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .codexRow(background: CodexPalette.warningOrange.opacity(0.10), border: CodexPalette.warningOrange.opacity(0.24), minHeight: 44)
+        .codexRow(background: CodexTone.warning.background, border: CodexTone.warning.border, minHeight: 44)
+    }
+
+    private func limitTone(_ window: UsageLimitDisplay) -> CodexTone {
+        if window.limitReached {
+            return .danger
+        }
+        return CodexTone.usage(remainingPercent: window.remainingPercent)
+    }
+
+    private func limitMetricText(_ window: UsageLimitDisplay) -> String {
+        if window.limitReached {
+            return "Blocked"
+        }
+        return remainingText(window.remainingPercent)
+    }
+
+    private func limitSubtitle(_ window: UsageLimitDisplay) -> String {
+        if window.limitReached {
+            return "Blocked · \(resetText(window))"
+        }
+        if menuBarMetric.matches(window.kind) {
+            return "Menu bar · \(selectedResetText(window))"
+        }
+        return resetText(window)
     }
 
     private func remainingText(_ value: Int?) -> String {

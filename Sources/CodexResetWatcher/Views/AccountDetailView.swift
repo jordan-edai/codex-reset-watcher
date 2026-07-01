@@ -268,8 +268,8 @@ struct AccountDetailView: View {
         .padding(CodexStyle.Spacing.rowVertical)
         .frame(maxWidth: .infinity, alignment: .leading)
         .codexPanel(
-            background: CodexPalette.warningOrange.opacity(0.10),
-            border: CodexPalette.warningOrange.opacity(0.24),
+            background: CodexTone.warning.background,
+            border: CodexTone.warning.border,
             shadow: false
         )
     }
@@ -289,6 +289,9 @@ private struct UsageLimitCardView: View {
                         .font(CodexStyle.Typography.cardTitle)
                 }
                 Spacer()
+                if window.limitReached {
+                    CodexStatusBadge(text: "Limit reached", tone: .danger, filled: true)
+                }
                 Text(percentText(window.remainingPercent))
                     .font(CodexStyle.Typography.cardMetric)
                     .monospacedDigit()
@@ -336,7 +339,10 @@ private struct UsageLimitCardView: View {
     }
 
     private var tone: CodexTone {
-        CodexTone.usage(remainingPercent: window.remainingPercent)
+        if window.limitReached {
+            return .danger
+        }
+        return CodexTone.usage(remainingPercent: window.remainingPercent)
     }
 
     private var resetDurationLabel: String {
@@ -440,6 +446,8 @@ private struct NudgeCardView: View {
         switch nudge.tier {
         case .spend:
             return "bolt.fill"
+        case .blocked:
+            return "exclamationmark.octagon.fill"
         case .expiringReset:
             return "exclamationmark.octagon.fill"
         case .deadline:
@@ -463,7 +471,7 @@ private struct NudgeCardView: View {
         switch nudge.tier {
         case .spend:
             return .success
-        case .expiringReset:
+        case .blocked, .expiringReset:
             return .danger
         case .deadline:
             return .warning

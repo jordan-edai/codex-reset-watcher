@@ -13,6 +13,7 @@ It reads your existing local Codex Desktop login from `~/.codex/auth.json`, call
 - active account label from the current local Codex login or usage response
 - cached snapshots for previously seen Codex accounts, labeled separately from
   the active account
+- blocked-limit states when Codex says a usage window is unavailable now
 - banked reset credits and expiry dates
 - explicit unavailable-expiry rows when Codex reports a reset count but omits a
   usable expiry record
@@ -31,7 +32,7 @@ No API key is required.
 ## Install
 
 1. Download the versioned zip asset from the latest GitHub release, for example
-   `Codex.Reset.Watcher.v0.3.4.zip`.
+   `Codex.Reset.Watcher.v0.3.5.zip`.
 2. Unzip it.
 3. Drag `Codex Reset Watcher.app` into `/Applications`.
 4. Open it.
@@ -57,6 +58,8 @@ The app uses rule-based advice from the data Codex returns for the current signe
 - Healthy weekly room but low 5-hour room: wait if the 5-hour refill is close, but treat it as a deadline call if the refill is still hours away.
 - Healthy weekly room with weekly refresh close: keep the reset banked.
 - Reset credit expiring today: show a use-it-or-lose-it warning before conservative hold advice.
+- Codex says a limit is blocked now: show a blocked state before normal reset
+  advice, even if the percentage fields still decode.
 
 Reset-credit rows also change urgency as expiry gets close: available, this week, expires soon, ends today, or expired.
 

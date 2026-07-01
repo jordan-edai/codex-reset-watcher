@@ -159,6 +159,39 @@ final class UsageNudgeTests: XCTestCase {
     }
 
     @MainActor
+    func testBlockedWindowWithBankedResetTakesPriority() {
+        let nudge = UsageNudge.make(
+            windows: [
+                window(kind: .fiveHour, remaining: 80, resetAfterSeconds: 4 * 3_600, limitReached: true),
+                window(kind: .weekly, remaining: 80, resetAfterSeconds: 24 * 60 * 60)
+            ],
+            resetCount: 1,
+            resetUrgencies: [
+                ResetExpiryUrgency(level: .urgent, badge: "Ends today", hint: "Use it soon or let it go")
+            ]
+        )
+
+        XCTAssertEqual(nudge.tier, .blocked)
+        XCTAssertEqual(nudge.title, "Blocked now")
+        XCTAssertEqual(nudge.detail, "1 reset banked")
+    }
+
+    @MainActor
+    func testBlockedWindowWithoutBankedResetWaits() {
+        let nudge = UsageNudge.make(
+            windows: [
+                window(kind: .fiveHour, remaining: 0, resetAfterSeconds: 45 * 60, limitReached: true),
+                window(kind: .weekly, remaining: 80, resetAfterSeconds: 24 * 60 * 60)
+            ],
+            resetCount: 0
+        )
+
+        XCTAssertEqual(nudge.tier, .blocked)
+        XCTAssertEqual(nudge.title, "Blocked, wait it out")
+        XCTAssertEqual(nudge.detail, "5h limit resets in 45m")
+    }
+
+    @MainActor
     func testUseIfBlockedWhenWeeklyIsLowButNotBurnMode() {
         let nudge = UsageNudge.make(
             windows: [
@@ -247,7 +280,8 @@ final class UsageNudgeTests: XCTestCase {
     private func window(
         kind: UsageLimitDisplay.Kind,
         remaining: Int,
-        resetAfterSeconds: Int?
+        resetAfterSeconds: Int?,
+        limitReached: Bool = false
     ) -> UsageLimitDisplay {
         let seconds: Int
         let id: String
@@ -278,7 +312,7 @@ final class UsageNudgeTests: XCTestCase {
                 resetAfterSeconds: resetAfterSeconds,
                 resetAt: nil
             ),
-            limitReached: false
+            limitReached: limitReached
         )
     }
 }
