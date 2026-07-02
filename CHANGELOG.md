@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.8 - 2026-07-02
+
+- Makes the desktop window roughly 10% larger by default so the usage cards,
+  reset expiry rows, nudge, and footer controls fit without the bottom content
+  being clipped on first open.
+- Enforces the roomier minimum size on restored macOS windows, so users with an
+  older saved too-short window frame get expanded instead of seeing the old
+  clipped layout again.
+- Adds a design-system regression test for the desktop window size floor.
+
 ## 0.3.7 - 2026-07-02
 
 - Tightens the desktop layout so the active usage cards, all reset expiry rows,

@@ -32,11 +32,20 @@ struct CodexResetWatcherApp: App {
                         mainWindowController.register(window)
                     }
                 }
-                .frame(minWidth: 800, idealWidth: 860, minHeight: 560, idealHeight: 620)
+                .frame(
+                    minWidth: CodexStyle.Size.mainWindowMinWidth,
+                    idealWidth: CodexStyle.Size.mainWindowDefaultWidth,
+                    minHeight: CodexStyle.Size.mainWindowMinHeight,
+                    idealHeight: CodexStyle.Size.mainWindowDefaultHeight
+                )
                 .task {
                     store.start()
                 }
         }
+        .defaultSize(
+            width: CodexStyle.Size.mainWindowDefaultWidth,
+            height: CodexStyle.Size.mainWindowDefaultHeight
+        )
         .commands {
             CommandGroup(replacing: .newItem) {}
             CommandMenu("Codex Reset Watcher") {
