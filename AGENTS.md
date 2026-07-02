@@ -58,6 +58,9 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Read `DESIGN_SYSTEM.md` before making visual changes.
 - The menu dropdown uses fixed icon, content, metric, and date columns. Preserve
   that rhythm when adding rows so labels do not bleed into popover edges.
+- Keep the menu dropdown comfortably sized. Do not solve menu fit by stacking
+  overly dense rows; widen the popover and use readable row heights when reset
+  credits, cached snapshots, and footer actions are all visible together.
 - The active account label can come from the usage response email, local
   `id_token` email/name, or a short account-id fallback.
 - Multi-account support is snapshot-based. The active account refreshes live;

@@ -18,27 +18,27 @@ enum CodexStyle {
         static let panel: CGFloat = 16
         static let compactPanel: CGFloat = 12
         static let densePanel: CGFloat = 10
-        static let menuPadding: CGFloat = 10
+        static let menuPadding: CGFloat = 14
         static let rowHorizontal: CGFloat = 13
-        static let rowVertical: CGFloat = 7
+        static let rowVertical: CGFloat = 9
         static let rowGap: CGFloat = 10
         static let tight: CGFloat = 6
     }
 
     enum Size {
         static let sidebarWidth: CGFloat = 230
-        static let menuWidth: CGFloat = 430
-        static let menuIconColumn: CGFloat = 28
-        static let menuMetricColumn: CGFloat = 96
-        static let menuDateColumn: CGFloat = 124
-        static let menuControlWidth: CGFloat = 132
-        static let menuRowMinHeight: CGFloat = 44
+        static let menuWidth: CGFloat = 470
+        static let menuIconColumn: CGFloat = 32
+        static let menuMetricColumn: CGFloat = 104
+        static let menuDateColumn: CGFloat = 142
+        static let menuControlWidth: CGFloat = 150
+        static let menuRowMinHeight: CGFloat = 50
         static let artworkWidth: CGFloat = 88
         static let artworkHeight: CGFloat = 52
         static let compactArtworkWidth: CGFloat = 66
         static let compactArtworkHeight: CGFloat = 38
-        static let menuArtworkWidth: CGFloat = 50
-        static let menuArtworkHeight: CGFloat = 30
+        static let menuArtworkWidth: CGFloat = 58
+        static let menuArtworkHeight: CGFloat = 34
         static let iconBadge: CGFloat = 30
         static let smallIconBadge: CGFloat = 24
     }

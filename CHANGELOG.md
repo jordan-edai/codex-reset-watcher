@@ -10,8 +10,8 @@
   into an empty oval.
 - Makes usage cards, reset rows, header artwork, and the nudge card denser while
   preserving the shared `CodexPalette` / `CodexStyle` design system.
-- Tightens the menu-bar dropdown spacing so rows, section headers, reset
-  credits, cached snapshots, and footer actions share a compact utility rhythm.
+- Rebalances the menu-bar dropdown after real menu QA with a wider popover,
+  roomier row heights, and better reset/cached-snapshot breathing room.
 
 ## 0.3.6 - 2026-07-02
 
