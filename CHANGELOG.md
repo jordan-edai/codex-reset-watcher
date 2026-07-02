@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.7 - 2026-07-02
+
+- Tightens the desktop layout so the active usage cards, all reset expiry rows,
+  nudge, and footer controls fit in the default-height window without hiding
+  the main content behind scrolling.
+- Fixes desktop reset expiry row overlap by separating label/detail text from
+  the date column and removing the redundant status pill that could squeeze
+  into an empty oval.
+- Makes usage cards, reset rows, header artwork, and the nudge card denser while
+  preserving the shared `CodexPalette` / `CodexStyle` design system.
+- Tightens the menu-bar dropdown spacing so rows, section headers, reset
+  credits, cached snapshots, and footer actions share a compact utility rhythm.
+
 ## 0.3.6 - 2026-07-02
 
 - Refreshes the menu dropdown and desktop window around the uploaded 2026 design

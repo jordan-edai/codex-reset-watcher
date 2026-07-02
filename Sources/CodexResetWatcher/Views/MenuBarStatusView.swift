@@ -32,14 +32,14 @@ struct MenuBarStatusView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 6) {
             header
 
             ForEach(store.errorMessages, id: \.self) { message in
                 errorRow(message)
             }
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 5) {
                 ForEach(store.usageWindows) { window in
                     limitRow(window)
                 }
@@ -80,6 +80,7 @@ struct MenuBarStatusView: View {
                     NSApp.terminate(nil)
                 }
             }
+            .controlSize(.small)
         }
         .padding(CodexStyle.Spacing.menuPadding)
         .frame(width: CodexStyle.Size.menuWidth)
@@ -87,11 +88,11 @@ struct MenuBarStatusView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .center, spacing: CodexStyle.Spacing.panel) {
+        HStack(alignment: .center, spacing: 10) {
             CodexArtworkThumbnail(compact: true)
                 .frame(width: CodexStyle.Size.menuArtworkWidth, height: CodexStyle.Size.menuArtworkHeight)
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text("Codex limits")
                     .font(CodexStyle.Typography.menuTitle)
                     .foregroundStyle(CodexPalette.primaryText)
@@ -105,11 +106,11 @@ struct MenuBarStatusView: View {
                     .truncationMode(.middle)
             }
 
-            Spacer(minLength: 12)
+            Spacer(minLength: 8)
 
             VStack(alignment: .trailing, spacing: 2) {
                 Text("\(store.availableCount)")
-                    .font(.system(size: 28, weight: .semibold))
+                    .font(.system(size: 27, weight: .semibold))
                     .monospacedDigit()
                     .foregroundStyle(CodexPalette.primaryText)
                 Text(store.availableCount == 1 ? "reset banked" : "resets banked")
@@ -122,7 +123,6 @@ struct MenuBarStatusView: View {
                 }
             }
         }
-        .padding(.top, 1)
     }
 
     private var menuBarDisplayRow: some View {
@@ -151,7 +151,7 @@ struct MenuBarStatusView: View {
             }
             .frame(width: CodexStyle.Size.menuControlWidth)
         }
-        .codexRow(minHeight: 48)
+        .codexRow(minHeight: 42)
     }
 
     private var appearanceRow: some View {
@@ -179,7 +179,7 @@ struct MenuBarStatusView: View {
             }
             .frame(width: CodexStyle.Size.menuControlWidth)
         }
-        .codexRow(minHeight: 48)
+        .codexRow(minHeight: 42)
     }
 
     private func limitRow(_ window: UsageLimitDisplay) -> some View {
@@ -192,7 +192,7 @@ struct MenuBarStatusView: View {
             )
                 .frame(width: CodexStyle.Size.menuIconColumn)
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(window.title)
                     .font(CodexStyle.Typography.menuRowTitle)
                     .lineLimit(1)
@@ -217,11 +217,11 @@ struct MenuBarStatusView: View {
                 .lineLimit(1)
                 .frame(width: CodexStyle.Size.menuMetricColumn, alignment: .trailing)
         }
-        .codexRow(isSelected: menuBarMetric.matches(window.kind))
+        .codexRow(isSelected: menuBarMetric.matches(window.kind), minHeight: 44)
     }
 
     private var resetRows: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Reset credits")
                     .font(CodexStyle.Typography.menuRowMeta.weight(.semibold))
@@ -265,7 +265,7 @@ struct MenuBarStatusView: View {
 
             Spacer(minLength: 8)
 
-            VStack(alignment: .trailing, spacing: 1) {
+            VStack(alignment: .trailing, spacing: 0) {
                 Text(DateFormatting.weekdayDate(credit.expiresAt))
                 Text(DateFormatting.timeOnly(credit.expiresAt))
             }
@@ -274,7 +274,7 @@ struct MenuBarStatusView: View {
             .multilineTextAlignment(.trailing)
             .frame(width: CodexStyle.Size.menuDateColumn, alignment: .trailing)
         }
-        .codexRow(minHeight: 54)
+        .codexRow(minHeight: 44)
     }
 
     private func missingResetExpiryRow(index: Int) -> some View {
@@ -288,7 +288,7 @@ struct MenuBarStatusView: View {
 
             Spacer(minLength: 8)
 
-            VStack(alignment: .trailing, spacing: 1) {
+            VStack(alignment: .trailing, spacing: 0) {
                 Text("Expiry")
                 Text("unavailable")
             }
@@ -296,7 +296,7 @@ struct MenuBarStatusView: View {
             .multilineTextAlignment(.trailing)
             .frame(width: CodexStyle.Size.menuDateColumn, alignment: .trailing)
         }
-        .codexRow(minHeight: 54)
+        .codexRow(minHeight: 44)
     }
 
     private var moreResetsRow: some View {
@@ -321,7 +321,7 @@ struct MenuBarStatusView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 if let nextHiddenExpiry {
-                    VStack(alignment: .trailing, spacing: 1) {
+                    VStack(alignment: .trailing, spacing: 0) {
                         Text(DateFormatting.weekdayDate(nextHiddenExpiry))
                         Text(DateFormatting.timeOnly(nextHiddenExpiry))
                     }
@@ -339,7 +339,7 @@ struct MenuBarStatusView: View {
             }
         }
         .buttonStyle(.plain)
-        .codexRow(minHeight: 50)
+        .codexRow(minHeight: 42)
     }
 
     private var hiddenResetCreditCount: Int {
@@ -374,7 +374,7 @@ struct MenuBarStatusView: View {
     }
 
     private var cachedSnapshotsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Cached snapshots")
                     .font(CodexStyle.Typography.menuRowMeta.weight(.semibold))
@@ -437,7 +437,7 @@ struct MenuBarStatusView: View {
             }
         }
         .buttonStyle(.plain)
-        .codexRow(minHeight: 48)
+        .codexRow(minHeight: 42)
     }
 
     private var cachedSnapshotsOverflowRow: some View {
@@ -463,7 +463,7 @@ struct MenuBarStatusView: View {
             }
         }
         .buttonStyle(.plain)
-        .codexRow(minHeight: 44)
+        .codexRow(minHeight: 40)
     }
 
     private var clearStaleRow: some View {
@@ -483,7 +483,7 @@ struct MenuBarStatusView: View {
             }
         }
         .buttonStyle(.plain)
-        .codexRow(minHeight: 44)
+        .codexRow(minHeight: 40)
     }
 
     private var nudgeRow: some View {
@@ -503,7 +503,7 @@ struct MenuBarStatusView: View {
                 .truncationMode(.tail)
                 .frame(width: CodexStyle.Size.menuDateColumn, alignment: .trailing)
         }
-        .codexRow(background: nudgeTone.background, border: nudgeTone.border, minHeight: 46)
+        .codexRow(background: nudgeTone.background, border: nudgeTone.border, minHeight: 40)
     }
 
     private var nudgeTone: CodexTone {
@@ -532,7 +532,7 @@ struct MenuBarStatusView: View {
 
             Spacer()
         }
-        .codexRow(minHeight: 44)
+        .codexRow(minHeight: 40)
     }
 
     private func errorRow(_ message: String) -> some View {
@@ -546,7 +546,7 @@ struct MenuBarStatusView: View {
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .codexRow(background: CodexTone.warning.background, border: CodexTone.warning.border, minHeight: 44)
+        .codexRow(background: CodexTone.warning.background, border: CodexTone.warning.border, minHeight: 40)
     }
 
     private func limitTone(_ window: UsageLimitDisplay) -> CodexTone {

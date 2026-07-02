@@ -10,12 +10,17 @@ enum CodexStyle {
 
     enum Spacing {
         static let page: CGFloat = 20
+        static let desktopPage: CGFloat = 16
         static let section: CGFloat = 16
+        static let desktopSection: CGFloat = 10
         static let stack: CGFloat = 12
+        static let desktopStack: CGFloat = 8
         static let panel: CGFloat = 16
-        static let menuPadding: CGFloat = 14
+        static let compactPanel: CGFloat = 12
+        static let densePanel: CGFloat = 10
+        static let menuPadding: CGFloat = 10
         static let rowHorizontal: CGFloat = 13
-        static let rowVertical: CGFloat = 9
+        static let rowVertical: CGFloat = 7
         static let rowGap: CGFloat = 10
         static let tight: CGFloat = 6
     }
@@ -27,11 +32,13 @@ enum CodexStyle {
         static let menuMetricColumn: CGFloat = 96
         static let menuDateColumn: CGFloat = 124
         static let menuControlWidth: CGFloat = 132
-        static let menuRowMinHeight: CGFloat = 48
+        static let menuRowMinHeight: CGFloat = 44
         static let artworkWidth: CGFloat = 88
         static let artworkHeight: CGFloat = 52
-        static let menuArtworkWidth: CGFloat = 58
-        static let menuArtworkHeight: CGFloat = 34
+        static let compactArtworkWidth: CGFloat = 66
+        static let compactArtworkHeight: CGFloat = 38
+        static let menuArtworkWidth: CGFloat = 50
+        static let menuArtworkHeight: CGFloat = 30
         static let iconBadge: CGFloat = 30
         static let smallIconBadge: CGFloat = 24
     }
