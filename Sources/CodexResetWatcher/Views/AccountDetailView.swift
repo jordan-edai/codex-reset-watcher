@@ -10,7 +10,7 @@ struct AccountDetailView: View {
     let onClearCached: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: CodexStyle.Spacing.section) {
+        VStack(alignment: .leading, spacing: CodexStyle.Spacing.desktopSection) {
             headerCard
 
             if detail.isCached {
@@ -25,7 +25,7 @@ struct AccountDetailView: View {
                 loadingState
             } else {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: CodexStyle.Spacing.stack) {
+                    VStack(alignment: .leading, spacing: CodexStyle.Spacing.desktopStack) {
                         if !detail.usageWindows.isEmpty {
                             usageSection
                         }
@@ -39,35 +39,36 @@ struct AccountDetailView: View {
 
             footer
         }
-        .padding(CodexStyle.Spacing.page)
+        .padding(CodexStyle.Spacing.desktopPage)
         .background(CodexPalette.appBackground)
     }
 
     private var headerCard: some View {
-        HStack(spacing: 13) {
+        HStack(spacing: 10) {
             CodexArtworkThumbnail()
-                .frame(width: CodexStyle.Size.artworkWidth, height: CodexStyle.Size.artworkHeight)
+                .frame(width: CodexStyle.Size.compactArtworkWidth, height: CodexStyle.Size.compactArtworkHeight)
 
-            VStack(alignment: .leading, spacing: 5) {
-                Label(detail.planLabel, systemImage: "terminal.fill")
-                    .font(CodexStyle.Typography.eyebrow)
-                    .textCase(.uppercase)
-                    .foregroundStyle(CodexPalette.mutedText)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(alignment: .firstTextBaseline, spacing: 7) {
+                    Label(detail.planLabel, systemImage: "terminal.fill")
+                        .font(CodexStyle.Typography.eyebrow)
+                        .textCase(.uppercase)
+                        .foregroundStyle(CodexPalette.mutedText)
+                        .labelStyle(.titleAndIcon)
 
-                Text("Codex Reset Watcher")
-                    .font(CodexStyle.Typography.appTitle)
+                    Text("Codex Reset Watcher")
+                        .font(CodexStyle.Typography.appTitle)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                }
 
-                Text(detail.statusDetail)
-                    .font(.subheadline)
-                    .foregroundStyle(CodexPalette.secondaryText)
-                    .lineLimit(1)
-
-                Text("\(detail.isActive ? "Active" : "Account"): \(detail.accountLabel)")
-                    .font(.subheadline.weight(.medium))
+                Text("\(detail.statusDetail) · \(detail.isActive ? "Active" : "Account"): \(detail.accountLabel)")
+                    .font(CodexStyle.Typography.caption)
                     .foregroundStyle(CodexPalette.secondaryText)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
+            .layoutPriority(1)
 
             Spacer()
 
@@ -81,7 +82,7 @@ struct AccountDetailView: View {
             }
             .padding(.horizontal, 4)
         }
-        .padding(CodexStyle.Spacing.panel)
+        .padding(CodexStyle.Spacing.densePanel)
         .codexPanel(background: CodexPalette.cardBackground, border: CodexPalette.softBorder)
     }
 
@@ -117,10 +118,10 @@ struct AccountDetailView: View {
     }
 
     private var usageSection: some View {
-        VStack(alignment: .leading, spacing: CodexStyle.Spacing.stack) {
+        VStack(alignment: .leading, spacing: CodexStyle.Spacing.desktopStack) {
             CodexSectionHeader(title: "Usage windows", detail: detail.isCached ? "Cached last-seen limits" : "Live limits")
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: CodexStyle.Spacing.panel) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 245), spacing: CodexStyle.Spacing.desktopStack)], spacing: CodexStyle.Spacing.desktopStack) {
                 ForEach(detail.usageWindows) { window in
                     UsageLimitCardView(window: window, isCached: detail.isCached)
                 }
@@ -129,7 +130,7 @@ struct AccountDetailView: View {
     }
 
     private var resetSection: some View {
-        VStack(alignment: .leading, spacing: CodexStyle.Spacing.stack) {
+        VStack(alignment: .leading, spacing: CodexStyle.Spacing.desktopStack) {
             CodexSectionHeader(
                 title: "Reset expiry",
                 detail: "\(detail.availableCount) \(detail.isCached ? "last seen" : "available")"
@@ -138,7 +139,7 @@ struct AccountDetailView: View {
             if !hasResetRows {
                 emptyState
             } else {
-                LazyVStack(spacing: 8) {
+                LazyVStack(spacing: 6) {
                     ForEach(Array(detail.credits.enumerated()), id: \.element.id) { index, credit in
                         CreditRowView(credit: credit, ordinal: index + 1)
                     }
@@ -297,7 +298,7 @@ private struct UsageLimitCardView: View {
     let isCached: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
                 HStack(spacing: 9) {
                     CodexIconBadge(systemName: iconName, tone: tone, size: CodexStyle.Size.smallIconBadge)
@@ -315,7 +316,7 @@ private struct UsageLimitCardView: View {
 
             LimitMeterView(label: "\(window.title) remaining", remainingPercent: window.remainingPercent, tone: tone)
 
-            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
+            Grid(alignment: .leading, horizontalSpacing: 11, verticalSpacing: 1) {
                 GridRow {
                     Text(isCached ? "Last seen used" : "Used")
                         .foregroundStyle(CodexPalette.secondaryText)
@@ -335,7 +336,7 @@ private struct UsageLimitCardView: View {
             }
             .font(CodexStyle.Typography.caption)
         }
-        .padding(CodexStyle.Spacing.panel)
+        .padding(CodexStyle.Spacing.densePanel)
         .codexPanel(background: CodexPalette.elevatedBackground, border: CodexPalette.softBorder, shadow: false)
     }
 
@@ -401,11 +402,11 @@ private struct NudgeCardView: View {
             CodexIconBadge(
                 systemName: iconName,
                 tone: tone,
-                size: CodexStyle.Size.iconBadge,
-                symbolSize: CodexStyle.Icon.content
+                size: CodexStyle.Size.smallIconBadge,
+                symbolSize: CodexStyle.Icon.badge
             )
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 2) {
                 HStack {
                     Text(nudge.title)
                         .font(CodexStyle.Typography.cardTitle)
@@ -419,11 +420,11 @@ private struct NudgeCardView: View {
                 Text(nudge.message)
                     .font(CodexStyle.Typography.body)
                     .foregroundStyle(CodexPalette.secondaryText)
-                    .lineLimit(2)
+                    .lineLimit(1)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(CodexStyle.Spacing.panel)
+        .padding(CodexStyle.Spacing.densePanel)
         .codexPanel(background: tone.background, border: tone.border, shadow: false)
     }
 

@@ -56,6 +56,12 @@ the visual priority.
   copy before shrinking fonts.
 - Prefer `LimitMeterView` for every usage/capacity bar so color thresholds,
   clamping, and accessibility labels stay consistent.
+- Desktop reset rows must keep label/detail text and expiry dates in separate
+  columns. Do not put the label and large expiry date in one flexible inline
+  text row; it will overlap in the default utility-window width.
+- The default desktop window should show active usage, reset expiries, the nudge,
+  and footer controls without requiring a first-glance scroll for ordinary
+  accounts with one to three banked resets.
 - Reset expiry rows should always label the reset number and show weekday,
   date, and time.
 - The menu dropdown and desktop window should share the same visual language.

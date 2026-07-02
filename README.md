@@ -35,7 +35,7 @@ No API key is required.
 ## Install
 
 1. Download the versioned zip asset from the latest GitHub release, for example
-   `Codex.Reset.Watcher.v0.3.6.zip`.
+   `Codex.Reset.Watcher.v0.3.7.zip`.
 2. Unzip it.
 3. Drag `Codex Reset Watcher.app` into `/Applications`.
 4. Open it.
