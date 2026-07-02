@@ -22,4 +22,11 @@ final class DesignSystemTests: XCTestCase {
         XCTAssertEqual(CodexTone.usage(remainingPercent: 24), .danger)
         XCTAssertEqual(CodexTone.usage(remainingPercent: 0), .danger)
     }
+
+    func testMainWindowDefaultSizeStaysRoomyEnoughForPrimaryContent() {
+        XCTAssertGreaterThanOrEqual(CodexStyle.Size.mainWindowMinWidth, 880)
+        XCTAssertGreaterThanOrEqual(CodexStyle.Size.mainWindowMinHeight, 680)
+        XCTAssertGreaterThanOrEqual(CodexStyle.Size.mainWindowDefaultWidth, 946)
+        XCTAssertGreaterThanOrEqual(CodexStyle.Size.mainWindowDefaultHeight, 682)
+    }
 }

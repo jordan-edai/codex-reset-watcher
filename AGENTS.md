@@ -10,9 +10,10 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Public GitHub repo: `https://github.com/jordan-edai/codex-reset-watcher`
 - Canonical local path: `/Users/everydayai/Documents/!Codex Projects/Rate Refresher Project`
 - Compatibility path: `/Users/everydayai/Documents/Rate Refresher Project`
-- Latest shipped release: `v0.3.7`
+- Latest shipped release: `v0.3.8`
 - Check `git log --oneline --decorate -5` for the current `main` commit; this
-  note tracks the repo state through the `v0.3.7` compact responsive layout fix.
+  note tracks the repo state through the `v0.3.8` default desktop window sizing
+  fix.
 - App bundle version is set in `script/build_and_run.sh`.
 
 ## Product Decisions
@@ -52,6 +53,9 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Keep desktop reset rows responsive and column-based. Labels/details and large
   expiry dates should never share one flexible inline text row, because that
   caused overlap at the default utility-window width.
+- Keep the main desktop window roomy enough by default. The window min/default
+  size tokens live in `CodexStyle.Size`, and `MainWindowController` expands
+  restored undersized frames so older saved window sizes do not clip the footer.
 - Routine app surfaces should stay light. Avoid smoky gray, dark tinted row
   fills, and dark terminal-block branding for normal states; use icons, borders,
   badges, and meters for emphasis, and reserve colored fills for warning/danger.

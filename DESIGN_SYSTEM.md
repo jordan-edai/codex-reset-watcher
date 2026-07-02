@@ -65,6 +65,10 @@ the visual priority.
 - The default desktop window should show active usage, reset expiries, the nudge,
   and footer controls without requiring a first-glance scroll for ordinary
   accounts with one to three banked resets.
+- The desktop window default and minimum sizes should stay large enough for that
+  ordinary one-to-three-reset state. If macOS restores an older undersized
+  frame, the main window should expand to the design-system minimum instead of
+  clipping the footer or nudge card.
 - Reset expiry rows should always label the reset number and show weekday,
   date, and time.
 - The menu dropdown and desktop window should share the same visual language.

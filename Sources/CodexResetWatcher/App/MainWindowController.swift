@@ -5,6 +5,10 @@ import SwiftUI
 final class MainWindowController: ObservableObject {
     private static let mainIdentifier = NSUserInterfaceItemIdentifier("codex-reset-watcher-main-window")
     private static let mainTitle = "Codex Reset Watcher"
+    private static let minimumSize = NSSize(
+        width: CodexStyle.Size.mainWindowMinWidth,
+        height: CodexStyle.Size.mainWindowMinHeight
+    )
 
     private weak var window: NSWindow?
 
@@ -13,6 +17,7 @@ final class MainWindowController: ObservableObject {
             return
         }
         window.identifier = Self.mainIdentifier
+        applySizing(to: window)
         if self.window == nil || self.window?.isVisible != true {
             self.window = window
         }
@@ -62,11 +67,56 @@ final class MainWindowController: ObservableObject {
     }
 
     private func bringForward(_ window: NSWindow) {
+        applySizing(to: window)
         if window.isMiniaturized {
             window.deminiaturize(nil)
         }
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
+    }
+
+    private func applySizing(to window: NSWindow) {
+        window.minSize = Self.minimumSize
+
+        let frame = window.frame
+        guard frame.width < Self.minimumSize.width || frame.height < Self.minimumSize.height else {
+            return
+        }
+
+        var resizedFrame = frame
+        let newWidth = max(frame.width, Self.minimumSize.width)
+        let newHeight = max(frame.height, Self.minimumSize.height)
+        resizedFrame.origin.y -= newHeight - frame.height
+        resizedFrame.size = NSSize(width: newWidth, height: newHeight)
+        resizedFrame = clampedToVisibleScreen(resizedFrame, for: window)
+        window.setFrame(resizedFrame, display: true, animate: false)
+    }
+
+    private func clampedToVisibleScreen(_ frame: NSRect, for window: NSWindow) -> NSRect {
+        guard let visibleFrame = (window.screen ?? NSScreen.main)?.visibleFrame else {
+            return frame
+        }
+
+        var clamped = frame
+        if clamped.width > visibleFrame.width {
+            clamped.size.width = visibleFrame.width
+        }
+        if clamped.height > visibleFrame.height {
+            clamped.size.height = visibleFrame.height
+        }
+        if clamped.minX < visibleFrame.minX {
+            clamped.origin.x = visibleFrame.minX
+        }
+        if clamped.maxX > visibleFrame.maxX {
+            clamped.origin.x = visibleFrame.maxX - clamped.width
+        }
+        if clamped.minY < visibleFrame.minY {
+            clamped.origin.y = visibleFrame.minY
+        }
+        if clamped.maxY > visibleFrame.maxY {
+            clamped.origin.y = visibleFrame.maxY - clamped.height
+        }
+        return clamped
     }
 
     private func consolidateMainWindows(preferred preferredWindow: NSWindow) {

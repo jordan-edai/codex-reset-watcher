@@ -27,6 +27,10 @@ enum CodexStyle {
 
     enum Size {
         static let sidebarWidth: CGFloat = 230
+        static let mainWindowMinWidth: CGFloat = 880
+        static let mainWindowMinHeight: CGFloat = 680
+        static let mainWindowDefaultWidth: CGFloat = 946
+        static let mainWindowDefaultHeight: CGFloat = 682
         static let menuWidth: CGFloat = 470
         static let menuIconColumn: CGFloat = 32
         static let menuMetricColumn: CGFloat = 104

@@ -17,25 +17,24 @@ https://github.com/jordan-edai/codex-reset-watcher
 Current release:
 
 ```text
-v0.3.7
+v0.3.8
 ```
 
 Latest tracked release state:
 
 ```text
-v0.3.7 compact responsive layout fix
+v0.3.8 default desktop window sizing fix
 ```
 
 Latest local release branch:
 
 ```text
-codex/menu-breathing-room
+codex/main-window-10-percent-larger
 ```
 
-The v0.3.7 compact responsive layout fix tightens the desktop surface after the
-v0.3.6 UI refresh while keeping the menu dropdown wide and tall enough to read:
-reset dates no longer overlap labels, and ordinary one-to-three-reset states
-stay scannable without feeling crammed.
+The v0.3.8 default desktop window sizing fix keeps the v0.3.7 layout but opens
+the main window roughly 10% larger by default and expands restored undersized
+macOS frames so the nudge/footer area is not clipped.
 
 ## What Is Shipped
 
@@ -85,12 +84,15 @@ stay scannable without feeling crammed.
 - `v0.3.7`: fixes desktop reset-row column overlap, reduces wasteful desktop
   vertical spacing, and gives the real menu dropdown a wider, more comfortable
   rhythm for ordinary reset states.
+- `v0.3.8`: opens the desktop window roughly 10% larger by default, enforces a
+  roomier minimum for restored windows, and adds a regression test for the
+  window-size floor.
 
 ## Current GitHub State
 
 - Repo is public.
 - Repo description: `Local-first macOS menu bar app for Codex usage limits and reset credits.`
-- Latest release is `v0.3.7`.
+- Latest release is `v0.3.8`.
 - `v0.2.0` release asset cleanup was completed; the duplicate generic
   `Codex.Reset.Watcher.zip` was removed and the versioned zip was kept.
 - v0.3.4 audit fixes restored per-snapshot menu navigation, distinguish
@@ -115,6 +117,9 @@ stay scannable without feeling crammed.
 - Release `v0.3.7` fixes the follow-up layout issues from `v0.3.6`: desktop
   reset date overlap, excessive desktop vertical spacing, and menu sizing that
   needs enough width/height to avoid a cramped dropdown.
+- Release `v0.3.8` fixes the remaining desktop first-open sizing issue by
+  growing the default/minimum window so ordinary content is not cut off at the
+  bottom.
 - PR #1 shipped usage limits and reset nudges.
 - PR #2 shipped the weekly menu bar title.
 - PR #4 fixed the visible menu bar label and versioned release upload path.
