@@ -29,12 +29,13 @@ v0.3.7 compact responsive layout fix
 Latest local release branch:
 
 ```text
-codex/desktop-responsive-fit
+codex/menu-breathing-room
 ```
 
-The v0.3.7 compact responsive layout fix tightens the desktop and menu spacing
-after the v0.3.6 UI refresh so reset dates no longer overlap labels and the
-ordinary one-to-three-reset view fits in the default utility window.
+The v0.3.7 compact responsive layout fix tightens the desktop surface after the
+v0.3.6 UI refresh while keeping the menu dropdown wide and tall enough to read:
+reset dates no longer overlap labels, and ordinary one-to-three-reset states
+stay scannable without feeling crammed.
 
 ## What Is Shipped
 
@@ -81,9 +82,9 @@ ordinary one-to-three-reset view fits in the default utility window.
 - `v0.3.6`: refreshes the shared visual system, adds Light/Dark/Auto modes,
   adds tested green/amber/red usage-capacity bars, and keeps menu/desktop
   styling aligned around the same tokens and meters.
-- `v0.3.7`: fixes desktop reset-row column overlap, tightens vertical spacing,
-  and makes the default desktop/menu surfaces fit ordinary reset states without
-  wasteful scrolling.
+- `v0.3.7`: fixes desktop reset-row column overlap, reduces wasteful desktop
+  vertical spacing, and gives the real menu dropdown a wider, more comfortable
+  rhythm for ordinary reset states.
 
 ## Current GitHub State
 
@@ -111,8 +112,9 @@ ordinary one-to-three-reset view fits in the default utility window.
   `Codex.Reset.Watcher.v0.3.5.zip`.
 - Release `v0.3.6` refreshes the UI with adaptive appearance modes and
   tested capacity bar colors.
-- Release `v0.3.7` fixes the follow-up layout density issues from `v0.3.6`:
-  desktop reset date overlap, excessive vertical spacing, and loose menu rhythm.
+- Release `v0.3.7` fixes the follow-up layout issues from `v0.3.6`: desktop
+  reset date overlap, excessive desktop vertical spacing, and menu sizing that
+  needs enough width/height to avoid a cramped dropdown.
 - PR #1 shipped usage limits and reset nudges.
 - PR #2 shipped the weekly menu bar title.
 - PR #4 fixed the visible menu bar label and versioned release upload path.

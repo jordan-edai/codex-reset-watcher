@@ -44,6 +44,9 @@ the visual priority.
 - Keep the menu width roomy enough for fixed columns, reset dates, and the
   Light/Dark/Auto control. Do not shrink the menu to solve whitespace concerns
   until the real dropdown has been checked for clipping.
+- The menu dropdown may be tall enough to breathe. Do not compress every row to
+  keep all possible content above the fold; if the real popover feels jammed,
+  prefer a wider menu and comfortable row heights before shrinking type.
 - Preserve count honesty: when a server count is higher than decoded display
   rows, render a calm unavailable/missing row instead of making the count and
   visible rows disagree.
