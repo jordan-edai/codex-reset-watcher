@@ -10,9 +10,9 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Public GitHub repo: `https://github.com/jordan-edai/codex-reset-watcher`
 - Canonical local path: `/Users/everydayai/Documents/!Codex Projects/Rate Refresher Project`
 - Compatibility path: `/Users/everydayai/Documents/Rate Refresher Project`
-- Latest shipped release: `v0.3.5`
+- Latest shipped release: `v0.3.6`
 - Check `git log --oneline --decorate -5` for the current `main` commit; this
-  note tracks the repo state through the `v0.3.5` audit follow-up release.
+  note tracks the repo state through the `v0.3.6` UI refresh release.
 - App bundle version is set in `script/build_and_run.sh`.
 
 ## Product Decisions
@@ -42,6 +42,13 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Visual styling should flow through `CodexPalette` and `CodexStyle`. Prefer
   shared spacing, radius, type, row, and panel tokens over one-off view-local
   constants so the menu dropdown and desktop window stay visually aligned.
+- Appearance mode is shared by the menu dropdown and desktop window. Keep
+  Light/Dark/Auto routed through `CodexAppearanceMode`, SwiftUI
+  `preferredColorScheme`, and `NSApp.appearance` so custom palette colors
+  actually switch in menu-bar popovers.
+- Usage capacity bars use remaining-percentage thresholds from the 2026 design
+  refresh: green at 60% or higher, amber from 25% through 59%, and red below
+  25%. Blocked usage windows override percentage color with danger styling.
 - Routine app surfaces should stay light. Avoid smoky gray, dark tinted row
   fills, and dark terminal-block branding for normal states; use icons, borders,
   badges, and meters for emphasis, and reserve colored fills for warning/danger.

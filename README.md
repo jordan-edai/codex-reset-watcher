@@ -8,8 +8,11 @@ It reads your existing local Codex Desktop login from `~/.codex/auth.json`, call
 
 - current 5-hour usage remaining
 - current weekly usage remaining
+- usage bars that turn green, amber, or red based on remaining capacity
 - menu bar display switching between weekly reset-day and 5h reset-time cues,
   for example `57% | Sunday` or `80% | 9:50 PM`
+- Light, Dark, and Auto appearance modes shared by the menu dropdown and main
+  window
 - active account label from the current local Codex login or usage response
 - cached snapshots for previously seen Codex accounts, labeled separately from
   the active account
@@ -32,7 +35,7 @@ No API key is required.
 ## Install
 
 1. Download the versioned zip asset from the latest GitHub release, for example
-   `Codex.Reset.Watcher.v0.3.5.zip`.
+   `Codex.Reset.Watcher.v0.3.6.zip`.
 2. Unzip it.
 3. Drag `Codex Reset Watcher.app` into `/Applications`.
 4. Open it.
@@ -107,9 +110,10 @@ keys, or reset credit IDs.
 ## Design System
 
 Shared visual tokens live in `Sources/CodexResetWatcher/Support/CodexPalette.swift`
-and `Sources/CodexResetWatcher/Support/CodexStyle.swift`. Use those colors,
-spacing values, radii, typography styles, and panel/row modifiers for menu and
-desktop UI changes so the app stays visually consistent. See
+and `Sources/CodexResetWatcher/Support/CodexStyle.swift`, with semantic tones
+in `Sources/CodexResetWatcher/Support/CodexTone.swift`. Use those colors,
+spacing values, radii, typography styles, meters, and panel/row modifiers for
+menu and desktop UI changes so the app stays visually consistent. See
 [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) before making visual changes.
 
 ## What It Calls

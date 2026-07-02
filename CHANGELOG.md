@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.6 - 2026-07-02
+
+- Refreshes the menu dropdown and desktop window around the uploaded 2026 design
+  system: warmer light surfaces, dark gray dark mode surfaces, shared row/card
+  styling, and a roomier readable menu scale.
+- Adds Light, Dark, and Auto appearance modes that apply to both SwiftUI content
+  and the AppKit menu-bar app appearance.
+- Adds green, amber, and red usage-capacity bars with tested thresholds:
+  60% or higher is green, 25-59% is amber, and below 25% is red; blocked usage
+  windows still override with danger styling.
+- Moves live usage windows ahead of reset expiry and nudge content in the
+  desktop detail view so current capacity is the first thing to scan.
+- Adds compact usage meters to the menu dropdown rows while preserving the
+  active menu-bar title selector, reset expiry rows, and cached snapshot rows.
+- Adds design-system tests for appearance-mode mapping and usage-tone
+  thresholds.
+
 ## 0.3.5 - 2026-06-30
 
 - Treats Codex `allowed: false` / `limit_reached` usage responses as a first-class

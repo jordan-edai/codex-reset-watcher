@@ -34,6 +34,8 @@ struct AccountSidebarView: View {
                 }
             }
             .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
+            .background(CodexPalette.sidebarBackground)
 
             if !store.cachedSnapshots.isEmpty {
                 Divider()
@@ -64,19 +66,24 @@ struct AccountSidebarView: View {
 
     private func sidebarRow(_ row: AccountSidebarRow) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: row.systemImage)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(row.isStale ? CodexPalette.warningOrange : CodexPalette.secondaryText)
-                .frame(width: 18)
-                .accessibilityHidden(true)
+            ZStack {
+                Circle()
+                    .fill(row.isStale ? CodexTone.warning.iconBackground : CodexPalette.primaryText.opacity(0.08))
+                Image(systemName: row.systemImage)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(row.isStale ? CodexPalette.warningOrange : CodexPalette.secondaryText)
+                    .accessibilityHidden(true)
+            }
+            .frame(width: 22, height: 22)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.label)
+                    .font(.system(size: 12, weight: .medium))
                     .lineLimit(1)
                     .truncationMode(.middle)
 
                 Text(row.detail)
-                    .font(.caption)
+                    .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(row.isStale ? CodexPalette.warningOrange : CodexPalette.secondaryText)
                     .lineLimit(1)
             }

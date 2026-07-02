@@ -4,18 +4,18 @@ enum CodexStyle {
     enum Radius {
         static let panel: CGFloat = 8
         static let row: CGFloat = 6
-        static let pill: CGFloat = 6
+        static let pill: CGFloat = 20
         static let artwork: CGFloat = 7
     }
 
     enum Spacing {
-        static let page: CGFloat = 18
+        static let page: CGFloat = 20
         static let section: CGFloat = 16
         static let stack: CGFloat = 12
-        static let panel: CGFloat = 14
-        static let menuPadding: CGFloat = 16
-        static let rowHorizontal: CGFloat = 12
-        static let rowVertical: CGFloat = 10
+        static let panel: CGFloat = 16
+        static let menuPadding: CGFloat = 14
+        static let rowHorizontal: CGFloat = 13
+        static let rowVertical: CGFloat = 9
         static let rowGap: CGFloat = 10
         static let tight: CGFloat = 6
     }
@@ -52,6 +52,7 @@ enum CodexStyle {
 
     enum Meter {
         static let height: CGFloat = 5
+        static let menuHeight: CGFloat = 4
     }
 
     enum Badge {
@@ -66,21 +67,21 @@ enum CodexStyle {
     }
 
     enum Typography {
-        static let appTitle = Font.system(size: 23, weight: .semibold)
+        static let appTitle = Font.system(size: 23, weight: .bold)
         static let sectionTitle = Font.system(size: 18, weight: .semibold)
         static let cardTitle = Font.system(size: 16, weight: .semibold)
-        static let cardMetric = Font.system(size: 25, weight: .semibold)
+        static let cardMetric = Font.system(size: 25, weight: .bold)
         static let summaryMetric = Font.system(size: 24, weight: .semibold)
         static let largeMetric = Font.system(size: 40, weight: .semibold)
         static let body = Font.system(size: 14, weight: .regular)
         static let bodyStrong = Font.system(size: 14, weight: .semibold)
         static let caption = Font.system(size: 12, weight: .medium)
         static let eyebrow = Font.system(size: 11, weight: .semibold)
-        static let menuTitle = Font.system(size: 20, weight: .semibold)
+        static let menuTitle = Font.system(size: 18, weight: .semibold)
         static let menuRowTitle = Font.system(size: 14, weight: .semibold)
-        static let menuRowMeta = Font.system(size: 13, weight: .medium)
-        static let menuMetric = Font.system(size: 16, weight: .semibold)
-        static let menuDate = Font.system(size: 15, weight: .semibold)
+        static let menuRowMeta = Font.system(size: 12, weight: .medium)
+        static let menuMetric = Font.system(size: 15, weight: .semibold)
+        static let menuDate = Font.system(size: 14, weight: .semibold)
     }
 }
 
@@ -95,7 +96,7 @@ private struct CodexPanelModifier: ViewModifier {
             .overlay {
                 shape.stroke(border)
             }
-            .shadow(color: .black.opacity(shadow ? 0.035 : 0), radius: shadow ? 10 : 0, y: shadow ? 1 : 0)
+            .shadow(color: .black.opacity(shadow ? 0.06 : 0), radius: shadow ? 8 : 0, y: shadow ? 1 : 0)
     }
 
     private var shape: RoundedRectangle {
