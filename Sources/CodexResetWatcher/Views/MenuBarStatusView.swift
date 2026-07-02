@@ -8,6 +8,7 @@ struct MenuBarStatusView: View {
     @ObservedObject var store: ResetCreditsStore
     @ObservedObject var mainWindowController: MainWindowController
     @Binding var menuBarMetricRawValue: String
+    @Binding var appearanceModeRawValue: String
     @Environment(\.openWindow) private var openWindow
 
     private var menuBarMetric: MenuBarMetric {
@@ -22,6 +23,14 @@ struct MenuBarStatusView: View {
         }
     }
 
+    private var appearanceModeSelection: Binding<String> {
+        Binding {
+            CodexAppearanceMode(rawValue: appearanceModeRawValue)?.rawValue ?? CodexAppearanceMode.auto.rawValue
+        } set: { newValue in
+            appearanceModeRawValue = CodexAppearanceMode(rawValue: newValue)?.rawValue ?? CodexAppearanceMode.auto.rawValue
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             header
@@ -30,15 +39,16 @@ struct MenuBarStatusView: View {
                 errorRow(message)
             }
 
-            nudgeRow
-
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(store.usageWindows) { window in
                     limitRow(window)
                 }
             }
 
+            nudgeRow
+
             menuBarDisplayRow
+            appearanceRow
 
             resetRows
 
@@ -97,9 +107,19 @@ struct MenuBarStatusView: View {
 
             Spacer(minLength: 12)
 
-            if store.isRefreshing {
-                ProgressView()
-                    .controlSize(.small)
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("\(store.availableCount)")
+                    .font(.system(size: 28, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(CodexPalette.primaryText)
+                Text(store.availableCount == 1 ? "reset banked" : "resets banked")
+                    .font(CodexStyle.Typography.menuRowMeta)
+                    .foregroundStyle(CodexPalette.secondaryText)
+                    .lineLimit(1)
+                if store.isRefreshing {
+                    ProgressView()
+                        .controlSize(.small)
+                }
             }
         }
         .padding(.top, 1)
@@ -123,14 +143,40 @@ struct MenuBarStatusView: View {
 
             Spacer()
 
-            Picker("Menu bar display", selection: menuBarMetricSelection) {
+            CodexSegmentedPicker(selection: menuBarMetricSelection) {
                 ForEach(MenuBarMetric.allCases) { metric in
                     Text(metric.pickerTitle)
                         .tag(metric.rawValue)
                 }
             }
-            .labelsHidden()
-            .pickerStyle(.segmented)
+            .frame(width: CodexStyle.Size.menuControlWidth)
+        }
+        .codexRow(minHeight: 48)
+    }
+
+    private var appearanceRow: some View {
+        HStack(spacing: CodexStyle.Spacing.rowGap) {
+            CodexIconBadge(systemName: "circle.lefthalf.filled", tone: .muted, size: 24, symbolSize: CodexStyle.Icon.menu)
+                .frame(width: CodexStyle.Size.menuIconColumn)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Appearance")
+                    .font(CodexStyle.Typography.menuRowTitle)
+                    .foregroundStyle(CodexPalette.primaryText)
+                    .lineLimit(1)
+                Text("Light, dark, or system")
+                    .font(CodexStyle.Typography.menuRowMeta)
+                    .foregroundStyle(CodexPalette.secondaryText)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            CodexSegmentedPicker(selection: appearanceModeSelection) {
+                ForEach(CodexAppearanceMode.allCases) { mode in
+                    Text(mode.title).tag(mode.rawValue)
+                }
+            }
             .frame(width: CodexStyle.Size.menuControlWidth)
         }
         .codexRow(minHeight: 48)
@@ -146,7 +192,7 @@ struct MenuBarStatusView: View {
             )
                 .frame(width: CodexStyle.Size.menuIconColumn)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 5) {
                 Text(window.title)
                     .font(CodexStyle.Typography.menuRowTitle)
                     .lineLimit(1)
@@ -155,6 +201,12 @@ struct MenuBarStatusView: View {
                     .foregroundStyle(CodexPalette.secondaryText)
                     .lineLimit(1)
                     .truncationMode(.tail)
+                LimitMeterView(
+                    label: "\(window.title) remaining",
+                    remainingPercent: window.remainingPercent,
+                    tone: limitTone(window),
+                    height: CodexStyle.Meter.menuHeight
+                )
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .layoutPriority(1)

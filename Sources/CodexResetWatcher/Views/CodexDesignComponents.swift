@@ -102,6 +102,52 @@ struct CodexSectionHeader: View {
     }
 }
 
+struct CodexSegmentedPicker<Selection: Hashable, Content: View>: View {
+    let selection: Binding<Selection>
+    let content: () -> Content
+
+    var body: some View {
+        Picker("", selection: selection) {
+            content()
+        }
+        .labelsHidden()
+        .pickerStyle(.segmented)
+        .background(CodexPalette.controlBackground, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+    }
+}
+
+struct LimitMeterView: View {
+    let label: String
+    let remainingPercent: Int?
+    var tone: CodexTone? = nil
+    var height: CGFloat = CodexStyle.Meter.height
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: height / 2, style: .continuous)
+                    .fill(CodexPalette.meterTrack)
+                RoundedRectangle(cornerRadius: height / 2, style: .continuous)
+                    .fill(resolvedTone.foreground)
+                    .frame(width: proxy.size.width * clampedValue)
+            }
+        }
+        .frame(height: height)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue(remainingPercent.map { "\($0)%" } ?? "Unknown")
+    }
+
+    private var resolvedTone: CodexTone {
+        tone ?? CodexTone.usage(remainingPercent: remainingPercent)
+    }
+
+    private var clampedValue: CGFloat {
+        let value = CGFloat(max(0, min(100, remainingPercent ?? 0)))
+        return value / 100
+    }
+}
+
 struct CodexSummaryMetricCard: View {
     let title: String
     let value: String

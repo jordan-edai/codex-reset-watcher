@@ -1,20 +1,21 @@
+import AppKit
 import SwiftUI
 
 enum CodexPalette {
     static var appBackground: Color {
-        Color(nsColor: .textBackgroundColor)
+        Color(lightHex: 0xF5F4F2, darkHex: 0x262628)
     }
 
     static var contentBackground: Color {
-        Color(nsColor: .windowBackgroundColor)
+        appBackground
     }
 
     static var sidebarBackground: Color {
-        Color(nsColor: .windowBackgroundColor)
+        Color(lightHex: 0xEFEEEC, darkHex: 0x2E2E30)
     }
 
     static var cardBackground: Color {
-        Color(nsColor: .textBackgroundColor)
+        Color(lightHex: 0xFFFFFF, darkHex: 0x323234)
     }
 
     static var panelBackground: Color {
@@ -22,11 +23,11 @@ enum CodexPalette {
     }
 
     static var elevatedBackground: Color {
-        Color(nsColor: .textBackgroundColor)
+        cardBackground
     }
 
     static var menuPopoverBackground: Color {
-        Color(nsColor: .textBackgroundColor)
+        Color(lightHex: 0xF5F4F2, darkHex: 0x2A2A2C)
     }
 
     static var rowBackground: Color {
@@ -34,7 +35,7 @@ enum CodexPalette {
     }
 
     static var selectedRowBackground: Color {
-        elevatedBackground
+        Color(lightHex: 0xE8F2FE, darkHex: 0x1F3448)
     }
 
     static var warningRowBackground: Color {
@@ -42,31 +43,31 @@ enum CodexPalette {
     }
 
     static var primaryText: Color {
-        Color.primary
+        Color(lightHex: 0x1D1D1F, darkHex: 0xFFFFFF)
     }
 
     static var secondaryText: Color {
-        Color.primary.opacity(0.72)
+        primaryText.opacity(0.58)
     }
 
     static var mutedText: Color {
-        Color.primary.opacity(0.58)
+        primaryText.opacity(0.42)
     }
 
     static var border: Color {
-        Color.primary.opacity(0.11)
+        primaryText.opacity(0.10)
     }
 
     static var softBorder: Color {
-        Color.primary.opacity(0.07)
+        primaryText.opacity(0.07)
     }
 
     static var selectedBorder: Color {
-        accent.opacity(0.24)
+        accent.opacity(0.30)
     }
 
     static var hairline: Color {
-        Color.primary.opacity(0.09)
+        primaryText.opacity(0.08)
     }
 
     static var accent: Color {
@@ -74,26 +75,54 @@ enum CodexPalette {
     }
 
     static var neutralAccent: Color {
-        Color(red: 0.22, green: 0.27, blue: 0.34)
+        Color(lightHex: 0x007AFF, darkHex: 0x0A84FF)
     }
 
     static var meterTrack: Color {
-        Color.primary.opacity(0.08)
+        primaryText.opacity(0.09)
     }
 
     static var availableGreen: Color {
-        Color(red: 0.0, green: 0.42, blue: 0.18)
+        Color(lightHex: 0x34C759, darkHex: 0x30D158)
     }
 
     static var warningOrange: Color {
-        Color(red: 0.82, green: 0.36, blue: 0.05)
+        Color(lightHex: 0xF0A500, darkHex: 0xFFD60A)
     }
 
     static var urgentRed: Color {
-        Color(red: 0.78, green: 0.10, blue: 0.10)
+        Color(lightHex: 0xD70015, darkHex: 0xFF453A)
     }
 
     static var attentionAmber: Color {
-        Color(red: 0.94, green: 0.67, blue: 0.04)
+        Color(lightHex: 0xF0A500, darkHex: 0xFFD60A)
+    }
+
+    static var titlebarBackground: Color {
+        Color(lightHex: 0xEFEEEC, darkHex: 0x2E2E30)
+    }
+
+    static var controlBackground: Color {
+        primaryText.opacity(0.06)
+    }
+}
+
+extension Color {
+    init(lightHex: UInt, darkHex: UInt) {
+        self.init(nsColor: NSColor(name: nil) { appearance in
+            let bestMatch = appearance.bestMatch(from: [.darkAqua, .aqua])
+            return NSColor(hex: bestMatch == .darkAqua ? darkHex : lightHex)
+        })
+    }
+}
+
+private extension NSColor {
+    convenience init(hex: UInt) {
+        self.init(
+            calibratedRed: CGFloat((hex >> 16) & 0xFF) / 255,
+            green: CGFloat((hex >> 8) & 0xFF) / 255,
+            blue: CGFloat(hex & 0xFF) / 255,
+            alpha: 1
+        )
     }
 }

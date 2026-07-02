@@ -3,6 +3,7 @@ import SwiftUI
 struct AccountDetailView: View {
     let detail: AccountDetailState
     let cachedAccountCount: Int
+    @Binding var appearanceModeRawValue: String
     let onRefresh: () -> Void
     let onForget: (AccountSnapshotID) -> Void
     let onClearStale: () -> Void
@@ -25,12 +26,12 @@ struct AccountDetailView: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: CodexStyle.Spacing.stack) {
-                        resetSection
-                        NudgeCardView(nudge: detail.nudge)
-
                         if !detail.usageWindows.isEmpty {
                             usageSection
                         }
+
+                        resetSection
+                        NudgeCardView(nudge: detail.nudge)
                     }
                     .padding(.vertical, 2)
                 }
@@ -178,6 +179,13 @@ struct AccountDetailView: View {
 
             Spacer()
 
+            CodexSegmentedPicker(selection: appearanceModeSelection) {
+                ForEach(CodexAppearanceMode.allCases) { mode in
+                    Text(mode.title).tag(mode.rawValue)
+                }
+            }
+            .frame(width: 184)
+
             if detail.canForget, let snapshotID = detail.snapshotID {
                 Button {
                     onForget(snapshotID)
@@ -216,6 +224,14 @@ struct AccountDetailView: View {
             return "Cached snapshot"
         }
         return "Updates every 5 min"
+    }
+
+    private var appearanceModeSelection: Binding<String> {
+        Binding {
+            CodexAppearanceMode(rawValue: appearanceModeRawValue)?.rawValue ?? CodexAppearanceMode.auto.rawValue
+        } set: { newValue in
+            appearanceModeRawValue = CodexAppearanceMode(rawValue: newValue)?.rawValue ?? CodexAppearanceMode.auto.rawValue
+        }
     }
 
     private var emptyState: some View {
@@ -297,7 +313,7 @@ private struct UsageLimitCardView: View {
                     .monospacedDigit()
             }
 
-            LimitMeterView(label: "\(window.title) remaining", remainingPercent: window.remainingPercent, tint: tint)
+            LimitMeterView(label: "\(window.title) remaining", remainingPercent: window.remainingPercent, tone: tone)
 
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
                 GridRow {
@@ -332,10 +348,6 @@ private struct UsageLimitCardView: View {
         case .generic:
             return "gauge"
         }
-    }
-
-    private var tint: Color {
-        tone.foreground
     }
 
     private var tone: CodexTone {
@@ -378,33 +390,6 @@ private struct UsageLimitCardView: View {
             return "-"
         }
         return "\(value)%"
-    }
-}
-
-private struct LimitMeterView: View {
-    let label: String
-    let remainingPercent: Int?
-    let tint: Color
-
-    var body: some View {
-        GeometryReader { proxy in
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: CodexStyle.Radius.pill, style: .continuous)
-                    .fill(CodexPalette.meterTrack)
-                RoundedRectangle(cornerRadius: CodexStyle.Radius.pill, style: .continuous)
-                    .fill(tint)
-                    .frame(width: proxy.size.width * clampedValue)
-            }
-        }
-        .frame(height: CodexStyle.Meter.height)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(label)
-        .accessibilityValue(remainingPercent.map { "\($0)%" } ?? "Unknown")
-    }
-
-    private var clampedValue: CGFloat {
-        let value = CGFloat(max(0, min(100, remainingPercent ?? 0)))
-        return value / 100
     }
 }
 

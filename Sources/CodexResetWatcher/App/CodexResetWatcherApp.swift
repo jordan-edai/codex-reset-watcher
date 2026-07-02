@@ -1,9 +1,11 @@
+import AppKit
 import SwiftUI
 
 @main
 struct CodexResetWatcherApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @AppStorage("menuBarMetric") private var menuBarMetricRawValue = MenuBarMetric.weekly.rawValue
+    @AppStorage("appearanceMode") private var appearanceModeRawValue = CodexAppearanceMode.auto.rawValue
     @StateObject private var store = ResetCreditsStore()
     @StateObject private var mainWindowController = MainWindowController()
 
@@ -11,9 +13,20 @@ struct CodexResetWatcherApp: App {
         MenuBarMetric(rawValue: menuBarMetricRawValue) ?? .weekly
     }
 
+    private var appearanceMode: CodexAppearanceMode {
+        CodexAppearanceMode(rawValue: appearanceModeRawValue) ?? .auto
+    }
+
     var body: some Scene {
         WindowGroup("Codex Reset Watcher", id: "main") {
-            ContentView(store: store)
+            ContentView(store: store, appearanceModeRawValue: $appearanceModeRawValue)
+                .preferredColorScheme(appearanceMode.colorScheme)
+                .onAppear {
+                    applyAppearanceMode()
+                }
+                .onChange(of: appearanceModeRawValue) {
+                    applyAppearanceMode()
+                }
                 .background {
                     MainWindowReader { window in
                         mainWindowController.register(window)
@@ -40,8 +53,16 @@ struct CodexResetWatcherApp: App {
             MenuBarStatusView(
                 store: store,
                 mainWindowController: mainWindowController,
-                menuBarMetricRawValue: $menuBarMetricRawValue
+                menuBarMetricRawValue: $menuBarMetricRawValue,
+                appearanceModeRawValue: $appearanceModeRawValue
             )
+                .preferredColorScheme(appearanceMode.colorScheme)
+                .onAppear {
+                    applyAppearanceMode()
+                }
+                .onChange(of: appearanceModeRawValue) {
+                    applyAppearanceMode()
+                }
                 .task {
                     store.start()
                 }
@@ -53,5 +74,9 @@ struct CodexResetWatcherApp: App {
             }
         }
         .menuBarExtraStyle(.window)
+    }
+
+    private func applyAppearanceMode() {
+        NSApp.appearance = appearanceMode.nsAppearance
     }
 }

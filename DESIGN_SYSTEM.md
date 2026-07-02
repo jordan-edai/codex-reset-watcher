@@ -7,6 +7,8 @@ the visual priority.
 ## Source Of Truth
 
 - Colors live in `Sources/CodexResetWatcher/Support/CodexPalette.swift`.
+- Appearance mode storage lives in
+  `Sources/CodexResetWatcher/Models/CodexAppearanceMode.swift`.
 - Radius, spacing, size, typography, and shared view modifiers live in
   `Sources/CodexResetWatcher/Support/CodexStyle.swift`.
 - Semantic state tones live in
@@ -19,12 +21,18 @@ the visual priority.
 ## Rules
 
 - Keep card and row corners at 8px or less.
-- Keep root surfaces high-contrast and system-adaptive. Avoid fixed white,
-  fixed black, and heavy gray fills.
+- Keep root surfaces high-contrast and adaptive to Light, Dark, and Auto modes.
+  Custom palette colors must work when `NSApp.appearance` is forced as well as
+  when macOS follows the system appearance.
+- Keep normal light mode warm and quiet: app background `#f5f4f2`, white cards,
+  black text, and hairline borders. Keep dark mode dark gray, not pure black.
 - Keep routine rows and cards light. Do not use smoky gray or dark tinted fills
   for normal, selected, or informational rows.
 - Use one accent color for neutral emphasis. Reserve green, amber, orange, and
   red for actual availability or urgency state.
+- Usage capacity bars use remaining percentage thresholds from the 2026 refresh:
+  green at 60% or higher, amber from 25% through 59%, and red below 25%.
+  Blocked usage windows override the percentage and render danger styling.
 - Let icons, borders, badges, and meters carry state. Use colored row fills only
   for real warning or danger states.
 - Do not add decorative gradients or extra background art to routine product
@@ -33,6 +41,9 @@ the visual priority.
   replace it with a dark terminal block or oversized banner.
 - Preserve the menu row grid: fixed icon column, flexible content column,
   compact metric column, and wider date/detail column when needed.
+- Keep the menu width roomy enough for fixed columns, reset dates, and the
+  Light/Dark/Auto control. Do not shrink the menu to solve whitespace concerns
+  until the real dropdown has been checked for clipping.
 - Preserve count honesty: when a server count is higher than decoded display
   rows, render a calm unavailable/missing row instead of making the count and
   visible rows disagree.
@@ -43,6 +54,8 @@ the visual priority.
   weekday, and 5h mode shows the next reset time.
 - Menu rows should fit without horizontal clipping. If text gets tight, shorten
   copy before shrinking fonts.
+- Prefer `LimitMeterView` for every usage/capacity bar so color thresholds,
+  clamping, and accessibility labels stay consistent.
 - Reset expiry rows should always label the reset number and show weekday,
   date, and time.
 - The menu dropdown and desktop window should share the same visual language.

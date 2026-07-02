@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum CodexTone {
+enum CodexTone: Equatable {
     case neutral
     case selected
     case success
@@ -94,10 +94,10 @@ enum CodexTone {
         guard let remainingPercent else {
             return .muted
         }
-        if remainingPercent <= 15 {
+        if remainingPercent < 25 {
             return .danger
         }
-        if remainingPercent <= 30 {
+        if remainingPercent < 60 {
             return .warning
         }
         return .success
