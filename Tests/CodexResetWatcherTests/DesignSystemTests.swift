@@ -29,4 +29,67 @@ final class DesignSystemTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(CodexStyle.Size.mainWindowDefaultWidth, 946)
         XCTAssertGreaterThanOrEqual(CodexStyle.Size.mainWindowDefaultHeight, 682)
     }
+
+    func testSmallTextRolesMeetContrastTargetOnCardSurfaces() {
+        let lightSurface = CodexPalette.Reference.lightCardBackground
+        let darkSurface = CodexPalette.Reference.darkCardBackground
+        let lightText = [
+            CodexPalette.Reference.lightSecondaryText,
+            CodexPalette.Reference.lightMutedText,
+            CodexPalette.Reference.lightNeutralText,
+            CodexPalette.Reference.lightAvailableText,
+            CodexPalette.Reference.lightWarningText,
+            CodexPalette.Reference.lightUrgentText,
+        ]
+        let darkText = [
+            CodexPalette.Reference.darkSecondaryText,
+            CodexPalette.Reference.darkMutedText,
+            CodexPalette.Reference.darkNeutralText,
+            CodexPalette.Reference.darkAvailableText,
+            CodexPalette.Reference.darkWarningText,
+            CodexPalette.Reference.darkUrgentText,
+        ]
+
+        for color in lightText {
+            XCTAssertGreaterThanOrEqual(contrastRatio(color, lightSurface), 4.5)
+        }
+        for color in darkText {
+            XCTAssertGreaterThanOrEqual(contrastRatio(color, darkSurface), 4.5)
+        }
+    }
+
+    func testStatusTextAndMeterColorsStaySeparate() {
+        XCTAssertNotEqual(CodexPalette.Reference.lightAvailableText, CodexPalette.Reference.lightAvailableMeter)
+        XCTAssertNotEqual(CodexPalette.Reference.lightWarningText, CodexPalette.Reference.lightWarningMeter)
+        XCTAssertNotEqual(CodexPalette.Reference.lightUrgentText, CodexPalette.Reference.lightUrgentMeter)
+    }
+
+    func testSidebarAndMenuSizingKeepsCoreContentReadable() {
+        XCTAssertGreaterThanOrEqual(CodexStyle.Typography.sidebarTitleSize, 12)
+        XCTAssertGreaterThanOrEqual(CodexStyle.Typography.sidebarDetailSize, 11)
+        XCTAssertGreaterThanOrEqual(CodexStyle.Size.menuDynamicContentMaxHeight, 560)
+        XCTAssertLessThanOrEqual(CodexStyle.Size.menuDynamicContentMaxHeight, 680)
+    }
+
+    private func contrastRatio(_ first: UInt, _ second: UInt) -> Double {
+        let firstLuminance = relativeLuminance(first)
+        let secondLuminance = relativeLuminance(second)
+        return (max(firstLuminance, secondLuminance) + 0.05)
+            / (min(firstLuminance, secondLuminance) + 0.05)
+    }
+
+    private func relativeLuminance(_ hex: UInt) -> Double {
+        let components = [
+            Double((hex >> 16) & 0xFF) / 255,
+            Double((hex >> 8) & 0xFF) / 255,
+            Double(hex & 0xFF) / 255,
+        ]
+
+        let linear = components.map { component in
+            component <= 0.04045
+                ? component / 12.92
+                : pow((component + 0.055) / 1.055, 2.4)
+        }
+        return (0.2126 * linear[0]) + (0.7152 * linear[1]) + (0.0722 * linear[2])
+    }
 }

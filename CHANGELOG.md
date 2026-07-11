@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.4.0 - 2026-07-11
+
+- Makes missing data explicit: loading, partial, signed-out, failed, and cached
+  states no longer masquerade as zero resets or fresh live limits.
+- Keeps the active account's live data separate from cached snapshots during
+  auth changes, endpoint failures, and token rotation, preventing mixed-account
+  snapshots and stale timestamps.
+- Uses the server reset count when available, shows missing-expiry rows when
+  Codex reports credits without usable expiry details, and shows only available
+  reset credits in the active detail view.
+- Improves reset advice for blocked limits, low 5-hour capacity, unknown reset
+  counts, and missing timing data; cached snapshots use neutral last-seen copy.
+- Bounds hostile numeric/date/count inputs and validates semantically empty
+  successful JSON responses before they can replace valid state.
+- Rejects empty auth tokens, unsafe redirects, and untrusted final response URLs;
+  keeps the dedicated network session free of cookies and URL caches.
+- Expands unit coverage to 105 tests across account races, snapshot redaction,
+  stale cleanup, hostile input, nudge decisions, endpoint trust, and UI tokens.
+- Makes release CI build universal arm64/x86_64 binaries and adds package scans
+  for sensitive strings and tag/version drift.
+
 ## 0.3.8 - 2026-07-02
 
 - Makes the desktop window roughly 10% larger by default so the usage cards,

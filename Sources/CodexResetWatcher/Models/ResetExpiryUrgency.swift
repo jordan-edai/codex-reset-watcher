@@ -31,7 +31,12 @@ struct ResetExpiryUrgency: Equatable, Sendable {
         }
 
         if seconds <= 86_400 {
-            return ResetExpiryUrgency(level: .urgent, badge: "Ends today", hint: "Use it soon or let it go")
+            let isSameCalendarDay = Calendar.autoupdatingCurrent.isDate(expiresAt, inSameDayAs: now)
+            return ResetExpiryUrgency(
+                level: .urgent,
+                badge: isSameCalendarDay ? "Ends today" : "Within 24 hours",
+                hint: "Use it soon if useful work needs it"
+            )
         }
 
         if seconds <= 3 * 86_400 {

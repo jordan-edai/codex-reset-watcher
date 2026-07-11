@@ -103,14 +103,26 @@ struct CodexSectionHeader: View {
 }
 
 struct CodexSegmentedPicker<Selection: Hashable, Content: View>: View {
+    let label: String
     let selection: Binding<Selection>
     let content: () -> Content
 
+    init(
+        _ label: String,
+        selection: Binding<Selection>,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.label = label
+        self.selection = selection
+        self.content = content
+    }
+
     var body: some View {
-        Picker("", selection: selection) {
+        Picker(label, selection: selection) {
             content()
         }
         .labelsHidden()
+        .accessibilityLabel(label)
         .pickerStyle(.segmented)
         .background(CodexPalette.controlBackground, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
     }
@@ -128,7 +140,7 @@ struct LimitMeterView: View {
                 RoundedRectangle(cornerRadius: height / 2, style: .continuous)
                     .fill(CodexPalette.meterTrack)
                 RoundedRectangle(cornerRadius: height / 2, style: .continuous)
-                    .fill(resolvedTone.foreground)
+                    .fill(resolvedTone.meter)
                     .frame(width: proxy.size.width * clampedValue)
             }
         }

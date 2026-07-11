@@ -10,10 +10,10 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Public GitHub repo: `https://github.com/jordan-edai/codex-reset-watcher`
 - Canonical local path: `/Users/everydayai/Documents/!Codex Projects/Rate Refresher Project`
 - Compatibility path: `/Users/everydayai/Documents/Rate Refresher Project`
-- Latest shipped release: `v0.3.8`
+- Latest shipped release: `v0.4.0`
 - Check `git log --oneline --decorate -5` for the current `main` commit; this
-  note tracks the repo state through the `v0.3.8` default desktop window sizing
-  fix.
+  note tracks the repo state through the `v0.4.0` reliability and release
+  hardening pass.
 - App bundle version is set in `script/build_and_run.sh`.
 
 ## Product Decisions
@@ -66,7 +66,8 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
   overly dense rows; widen the popover and use readable row heights when reset
   credits, cached snapshots, and footer actions are all visible together.
 - The active account label can come from the usage response email, local
-  `id_token` email/name, or a short account-id fallback.
+  `id_token` email/name, or the generic `Codex account` fallback. Do not expose
+  account-ID suffixes in user-facing labels.
 - Multi-account support is snapshot-based. The active account refreshes live;
   other accounts are cached last-seen snapshots only.
 - Do not describe cached snapshots as simultaneous live accounts. They are
@@ -112,6 +113,13 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
   and overflowing intervals should become missing timing data, not crashes.
 - Trusted Codex endpoint checks should stay exact: HTTPS, `chatgpt.com`, known
   `/backend-api/wham/...` path, and no userinfo, query, fragment, or custom port.
+- Reject empty auth tokens, redirects to an untrusted final URL, and successful
+  JSON responses with no recognized payload. A successful HTTP status alone is
+  not proof that the endpoint returned usable Codex data.
+- Keep the dedicated refresh URLSession stateless: no shared cookies, URL cache,
+  or credential storage.
+- Preserve unknown/partial/error states. Never convert missing counts or failed
+  endpoint results into a confirmed zero or a newly refreshed timestamp.
 
 ## Git And Workspace Rules
 

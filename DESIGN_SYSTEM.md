@@ -50,6 +50,9 @@ the visual priority.
 - Preserve count honesty: when a server count is higher than decoded display
   rows, render a calm unavailable/missing row instead of making the count and
   visible rows disagree.
+- Preserve state honesty: loading, partial, signed-out, failed, and cached
+  records need distinct copy and tone. Do not render an unknown count as `0` or
+  a cached number as a current live limit.
 - Keep the desktop multi-account sidebar native and lightweight: one icon, one
   account label line, and one cached/active/stale detail line. Put dense metrics
   in the detail pane, not the sidebar.
@@ -93,3 +96,5 @@ Then open the real macOS menu bar dropdown and check:
 - cached account rows truncate long labels cleanly and never change the menu bar
   title away from the active account
 - light and dark system appearances still have enough contrast
+- loading, partial endpoint failure, missing auth, blocked limits, and cached or
+  stale snapshots remain understandable without relying on color alone

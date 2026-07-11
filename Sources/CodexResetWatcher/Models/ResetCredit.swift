@@ -1,8 +1,11 @@
 import Foundation
 
-struct ResetCreditsResponse: Decodable, Sendable {
+struct ResetCreditsResponse: Decodable, Sendable, CodexSemanticallyValidResponse {
+    static let maximumDisplayCount = 20
+
     let credits: [ResetCredit]
     let availableCount: Int
+    let hasRecognizedPayload: Bool
 
     private enum CodingKeys: String, CodingKey {
         case credits
@@ -11,10 +14,14 @@ struct ResetCreditsResponse: Decodable, Sendable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        hasRecognizedPayload = container.contains(.credits) || container.contains(.availableCount)
         credits = (try container.decodeIfPresent([FailableDecodable<ResetCredit>].self, forKey: .credits) ?? [])
             .compactMap(\.value)
-        availableCount = container.decodeFlexibleIntIfPresent(forKey: .availableCount)
-            ?? credits.filter(\.isAvailable).count
+        let decodedCount = normalizedResetCreditCount(
+            container.decodeFlexibleIntIfPresent(forKey: .availableCount)
+        )
+        availableCount = decodedCount
+            ?? min(credits.filter(\.isAvailable).count, Self.maximumDisplayCount)
     }
 }
 
@@ -43,7 +50,7 @@ struct ResetCredit: Decodable, Identifiable, Sendable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decodeFlexibleString(forKey: .id)
+        id = try container.decodeFlexibleStringIfPresent(forKey: .id) ?? ""
         resetType = try container.decodeFlexibleStringIfPresent(forKey: .resetType) ?? "unknown"
         status = try container.decodeFlexibleStringIfPresent(forKey: .status) ?? "unknown"
         grantedAt = try container.decodeFlexibleStringIfPresent(forKey: .grantedAt)
@@ -59,6 +66,13 @@ struct ResetCredit: Decodable, Identifiable, Sendable {
     }
 }
 
+func normalizedResetCreditCount(_ value: Int?) -> Int? {
+    guard let value, value >= 0 else {
+        return nil
+    }
+    return min(value, ResetCreditsResponse.maximumDisplayCount)
+}
+
 private struct FailableDecodable<Value: Decodable>: Decodable {
     let value: Value?
 
@@ -68,16 +82,6 @@ private struct FailableDecodable<Value: Decodable>: Decodable {
 }
 
 private extension KeyedDecodingContainer {
-    func decodeFlexibleString(forKey key: Key) throws -> String {
-        if let value = try decodeFlexibleStringIfPresent(forKey: key) {
-            return value
-        }
-        throw DecodingError.keyNotFound(
-            key,
-            DecodingError.Context(codingPath: codingPath, debugDescription: "Missing required string for \(key.stringValue)")
-        )
-    }
-
     func decodeFlexibleStringIfPresent(forKey key: Key) throws -> String? {
         guard contains(key) else {
             return nil

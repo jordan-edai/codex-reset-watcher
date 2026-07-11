@@ -55,8 +55,8 @@ struct AccountSidebarView: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(CodexPalette.secondaryText)
+                .font(CodexStyle.Typography.sidebarDetail.weight(.semibold))
+                .foregroundStyle(.secondary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -68,27 +68,29 @@ struct AccountSidebarView: View {
         HStack(spacing: 10) {
             ZStack {
                 Circle()
-                    .fill(row.isStale ? CodexTone.warning.iconBackground : CodexPalette.primaryText.opacity(0.08))
+                    .fill(.secondary.opacity(row.isStale ? 0.16 : 0.10))
                 Image(systemName: row.systemImage)
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(row.isStale ? CodexPalette.warningOrange : CodexPalette.secondaryText)
+                    .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
             }
             .frame(width: 22, height: 22)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.label)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(CodexStyle.Typography.sidebarTitle)
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
                     .truncationMode(.middle)
 
                 Text(row.detail)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(row.isStale ? CodexPalette.warningOrange : CodexPalette.secondaryText)
+                    .font(CodexStyle.Typography.sidebarDetail)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
         }
         .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
     }
 
 }

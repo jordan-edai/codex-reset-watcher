@@ -22,99 +22,144 @@ struct UsageNudge: Sendable {
     @MainActor
     static func make(
         windows: [UsageLimitDisplay],
-        resetCount: Int,
-        resetUrgencies: [ResetExpiryUrgency] = []
+        resetCount: Int?,
+        resetUrgencies: [ResetExpiryUrgency] = [],
+        globallyBlocked: Bool = false,
+        now: Date = Date()
     ) -> UsageNudge {
-        if let blockedWindow = windows.first(where: \.limitReached) {
-            if resetCount > 0 {
+        if globallyBlocked || windows.contains(where: \.limitReached) {
+            let blockedWindow = windows.first(where: \.limitReached)
+            if let resetCount, resetCount > 0 {
                 return UsageNudge(
                     tier: .blocked,
                     title: "Blocked now",
-                    message: "Codex says \(blockedWindow.title.lowercased()) is at the wall. Spend a reset if this work matters now.",
-                    detail: "\(resetCount) \(resetCount == 1 ? "reset" : "resets") banked"
+                    message: blockedWindow.map { "Codex says \($0.title.lowercased()) is reached. Use a reset credit in Codex if you need to continue now." } ?? "Codex says new work is blocked. Use a reset credit in Codex if you need to continue now.",
+                    detail: resetCountDetail(resetCount)
                 )
             }
 
-            let detail = blockedWindow.window.resetAfterSeconds.map {
-                resetDetail(prefix: blockedWindow.title, seconds: $0)
-            } ?? "No reset banked"
+            if resetCount == nil {
+                return UsageNudge(
+                    tier: .blocked,
+                    title: "Blocked now",
+                    message: "Codex says this limit is reached, but the reset credit count could not be checked. Open Codex before deciding what to do.",
+                    detail: blockedWindow.flatMap { resetDetail(for: $0, now: now) } ?? "Reset count unavailable"
+                )
+            }
+
             return UsageNudge(
                 tier: .blocked,
-                title: "Blocked, wait it out",
-                message: "Codex says this limit is reached and there is no banked reset to spend.",
-                detail: detail
+                title: "Wait for the limit to reset",
+                message: "Codex says new work is blocked and no reset credits are available.",
+                detail: blockedWindow.flatMap { resetDetail(for: $0, now: now) } ?? "No reset credits available"
             )
         }
 
-        if resetCount > 0, resetUrgencies.contains(where: { $0.level == .urgent }) {
+        if let resetCount, resetCount > 0, resetUrgencies.contains(where: { $0.level == .urgent }) {
             return UsageNudge(
                 tier: .expiringReset,
-                title: "Use it or lose it",
-                message: "A banked reset expires today. If there is useful work queued, spend that reset before it disappears.",
-                detail: "Reset ends today"
+                title: "Reset credit expires soon",
+                message: "A reset credit expires within 24 hours. Use it in Codex only if useful work needs the extra capacity.",
+                detail: "Expires within 24 hours"
             )
         }
 
         guard let weekly = windows.first(where: { $0.kind == .weekly }),
               let weeklyRemaining = weekly.remainingPercent
         else {
+            if windows.isEmpty {
+                return UsageNudge(
+                    tier: .unavailable,
+                    title: "Usage unavailable",
+                    message: "Codex has not returned any usage limits yet. Refresh to try again.",
+                    detail: "No live limits"
+                )
+            }
             return UsageNudge(
                 tier: .unavailable,
-                title: "Waiting on the meters",
-                message: "No live usage windows yet. Refresh again after Codex finishes warming up.",
-                detail: "Try again soon"
+                title: "Weekly limit not identified",
+                message: "Usage loaded, but Codex did not identify which limit is weekly. Advice is unavailable until that is clear.",
+                detail: "Limits shown without a guess"
             )
         }
 
         let fiveHour = windows.first(where: { $0.kind == .fiveHour })
         let fiveHourRemaining = fiveHour?.remainingPercent
-        let weeklyResetSeconds = weekly.window.resetAfterSeconds
+        let fiveHourResetSeconds = fiveHour.flatMap { resetSeconds(for: $0, now: now) }
+        let weeklyResetSeconds = resetSeconds(for: weekly, now: now)
+
+        guard let resetCount else {
+            return UsageNudge(
+                tier: .unavailable,
+                title: "Reset credits unavailable",
+                message: "Usage limits loaded, but Codex did not return the reset credit count. Check Codex before deciding whether to use one.",
+                detail: "\(weeklyRemaining)% weekly left"
+            )
+        }
+
+        if resetCount == 0,
+           let fiveHourRemaining,
+           fiveHourRemaining <= 12 {
+            if let fiveHourReset = fiveHourResetSeconds {
+                if fiveHourReset <= 90 * 60 {
+                    return UsageNudge(
+                        tier: .waitFiveHour,
+                        title: "Wait for the 5-hour reset",
+                        message: "The 5-hour limit resets soon, and there is no reset credit available to spend. Let the window refill.",
+                        detail: resetDetail(prefix: "5h", seconds: fiveHourReset)
+                    )
+                }
+
+                return UsageNudge(
+                    tier: .noResets,
+                    title: "5-hour capacity is low",
+                    message: "There is no reset credit available. Pace the work until the 5-hour limit refills.",
+                    detail: resetDetail(prefix: "5h", seconds: fiveHourReset)
+                )
+            }
+
+            return UsageNudge(
+                tier: .noResets,
+                title: "5-hour timing is unclear",
+                message: "Capacity is low and there is no reset credit available. Refresh before a deadline run.",
+                detail: "5h reset unavailable"
+            )
+        }
 
         if resetCount == 0 {
             return UsageNudge(
                 tier: .noResets,
-                title: "No reset parachute",
-                message: "Watch the meters. There is no banked reset for a big sprint.",
+                title: "No reset credits available",
+                message: "Keep an eye on the limits. There is no reset credit available if Codex blocks the work.",
                 detail: "\(weeklyRemaining)% weekly left"
             )
         }
 
         if let fiveHourRemaining,
-           let fiveHourReset = fiveHour?.window.resetAfterSeconds,
+           let fiveHourReset = fiveHourResetSeconds,
            fiveHourRemaining <= 12,
            weeklyRemaining >= 25,
            fiveHourReset <= 90 * 60 {
             return UsageNudge(
                 tier: .waitFiveHour,
-                title: "Let the 5h tank refill",
-                message: "Weekly room is still decent. Let the short window catch up before spending a reset.",
+                title: "Wait for the 5-hour reset",
+                message: "The 5-hour limit resets soon and weekly capacity is still available. Keep the reset credit.",
                 detail: resetDetail(prefix: "5h", seconds: fiveHourReset)
             )
         }
 
         if let fiveHourRemaining,
-           let fiveHourReset = fiveHour?.window.resetAfterSeconds,
+           let fiveHourReset = fiveHourResetSeconds,
            fiveHourRemaining <= 12,
-           weeklyRemaining >= 50,
-           fiveHourReset > 90 * 60,
-           fiveHourReset <= 3 * 3_600 {
+           weeklyRemaining >= 25,
+           fiveHourReset > 90 * 60 {
+            let weeklyContext = weeklyRemaining >= 50
+                ? "Weekly capacity is still healthy."
+                : "Weekly capacity is getting lower."
             return UsageNudge(
                 tier: .deadline,
-                title: "Deadline call",
-                message: "Weekly runway looks great. If this is deadline work, spend a reset. Otherwise let the 5h clock do its thing.",
-                detail: resetDetail(prefix: "5h", seconds: fiveHourReset)
-            )
-        }
-
-        if let fiveHourRemaining,
-           let fiveHourReset = fiveHour?.window.resetAfterSeconds,
-           fiveHourRemaining <= 12,
-           weeklyRemaining >= 50,
-           fiveHourReset > 3 * 3_600 {
-            return UsageNudge(
-                tier: .deadline,
-                title: "Deadline override",
-                message: "The short window is hours away. Big deadline? Use a reset. Otherwise coast until the 5h refill.",
+                title: "Use a reset only for a deadline",
+                message: "\(weeklyContext) If this work has a real deadline, use a reset credit in Codex. Otherwise wait for the 5-hour reset.",
                 detail: resetDetail(prefix: "5h", seconds: fiveHourReset)
             )
         }
@@ -123,7 +168,7 @@ struct UsageNudge: Sendable {
             return UsageNudge(
                 tier: .steady,
                 title: "Reset timing unclear",
-                message: "Usage meters loaded, but Codex did not return a weekly reset timer. Spend a reset only if work is blocked.",
+                message: "Usage limits loaded, but Codex did not return the weekly reset time. Use a reset credit only if work is blocked.",
                 detail: "\(weeklyRemaining)% weekly left"
             )
         }
@@ -134,7 +179,7 @@ struct UsageNudge: Sendable {
             return UsageNudge(
                 tier: .spend,
                 title: "Go burn some tokens",
-                message: "You have \(resetCount) resets banked, weekly room is thin, and refresh is days away. Push the run, then spend a reset if Codex blocks real work.",
+                message: "You have \(resetCount) reset credits, weekly capacity is low, and the weekly reset is days away. Keep working, then use a credit if Codex blocks useful work.",
                 detail: "\(weeklyRemaining)% weekly left"
             )
         }
@@ -142,8 +187,8 @@ struct UsageNudge: Sendable {
         if resetCount >= 1, weeklyRemaining <= 20, weeklyDays >= 2 {
             return UsageNudge(
                 tier: .useIfBlocked,
-                title: "Green light, with brakes",
-                message: "If real work hits the wall, spending a reset makes sense. Do not use it just to tidy up the meter.",
+                title: "Use a reset only if blocked",
+                message: "If useful work is blocked, using a reset credit makes sense. Otherwise keep it.",
                 detail: resetDistanceDetail(seconds: weeklyResetSeconds, suffix: "to weekly reset")
             )
         }
@@ -151,8 +196,8 @@ struct UsageNudge: Sendable {
         if weeklyRemaining >= 35, weeklyDays <= 3 {
             return UsageNudge(
                 tier: .hold,
-                title: "Hold that reset",
-                message: "Plenty of weekly runway and the next refresh is close. Let the reset stay banked.",
+                title: "Keep your reset credit",
+                message: "Weekly capacity is healthy and the next reset is close. Save the credit.",
                 detail: "\(weeklyRemaining)% weekly left"
             )
         }
@@ -160,16 +205,16 @@ struct UsageNudge: Sendable {
         if weeklyRemaining >= 25, weeklyDays <= 2 {
             return UsageNudge(
                 tier: .hold,
-                title: "Pocket the reset",
-                message: "Capacity is not tight enough this close to weekly refresh. Keep the reset in your back pocket.",
+                title: "Keep your reset credit",
+                message: "The weekly reset is close and capacity is not tight enough to use a credit now.",
                 detail: resetDistanceDetail(seconds: weeklyResetSeconds, suffix: "away")
             )
         }
 
         return UsageNudge(
             tier: .steady,
-            title: "Cruise mode",
-            message: "Keep working. Re-check before a big run.",
+            title: "Keep working",
+            message: "Current capacity looks workable. Check again before a large run.",
             detail: "\(weeklyRemaining)% weekly left"
         )
     }
@@ -184,5 +229,18 @@ struct UsageNudge: Sendable {
     private static func resetDistanceDetail(seconds: Int, suffix: String) -> String {
         let duration = DateFormatting.duration(seconds: seconds)
         return duration == "now" ? "Weekly reset now" : "\(duration) \(suffix)"
+    }
+
+    private static func resetSeconds(for window: UsageLimitDisplay, now: Date) -> Int? {
+        window.window.resetSecondsRemaining(now: now)
+    }
+
+    @MainActor
+    private static func resetDetail(for window: UsageLimitDisplay, now: Date) -> String? {
+        resetSeconds(for: window, now: now).map { resetDetail(prefix: window.title, seconds: $0) }
+    }
+
+    private static func resetCountDetail(_ count: Int) -> String {
+        "\(count) reset \(count == 1 ? "credit" : "credits") available"
     }
 }

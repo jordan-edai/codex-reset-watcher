@@ -45,6 +45,10 @@ open "dist/Codex Reset Watcher.app"
   `swift test --scratch-path /tmp/codex-reset-watcher-test --jobs 1`,
   `CONFIGURATION=release ./script/package.sh`, and
   `CONFIGURATION=release ./script/build_and_run.sh --verify`.
+- Release candidates should also verify the packaged executable contains both
+  `arm64` and `x86_64` slices, the versioned zip opens cleanly, and the binary
+  contains no emails, account IDs, JWT-looking strings, token prefixes, local
+  auth paths, or raw endpoint JSON.
 - Keep release zips versioned. Do not upload wildcard or stale `dist/` artifacts.
 
 ## Icon

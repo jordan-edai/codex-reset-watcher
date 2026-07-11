@@ -24,11 +24,12 @@ struct CreditRowView: View {
                     .foregroundStyle(CodexPalette.secondaryText)
                     .lineLimit(1)
 
-                if let hint = urgency.hint {
-                    Text(hint)
+                if let status = urgency.visibleExpiryStatus {
+                    Text(status)
                         .font(CodexStyle.Typography.caption)
                         .foregroundStyle(tone.foreground)
-                        .lineLimit(1)
+                        .fontWeight(.semibold)
+                        .lineLimit(2)
                 }
             }
             .frame(minWidth: 132, maxWidth: .infinity, alignment: .leading)
@@ -82,6 +83,27 @@ struct CreditRowView: View {
             return tone.background
         case .inactive, .unknown:
             return CodexPalette.elevatedBackground
+        }
+    }
+}
+
+extension ResetExpiryUrgency {
+    var visibleExpiryStatus: String? {
+        switch level {
+        case .normal:
+            return nil
+        case .approaching:
+            return "Expires within 7 days"
+        case .soon:
+            return "Expires within 3 days"
+        case .urgent:
+            return "Expires within 24 hours"
+        case .expired:
+            return "Expired"
+        case .inactive:
+            return "Already used"
+        case .unknown:
+            return "Expiry unavailable"
         }
     }
 }

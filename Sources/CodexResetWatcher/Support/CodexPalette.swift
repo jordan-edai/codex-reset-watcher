@@ -2,6 +2,29 @@ import AppKit
 import SwiftUI
 
 enum CodexPalette {
+    enum Reference {
+        static let lightCardBackground: UInt = 0xFFFFFF
+        static let darkCardBackground: UInt = 0x323234
+        static let lightSecondaryText: UInt = 0x54545A
+        static let darkSecondaryText: UInt = 0xD1D1D6
+        static let lightMutedText: UInt = 0x6E6E73
+        static let darkMutedText: UInt = 0xAEAEB2
+        static let lightNeutralText: UInt = 0x0057C9
+        static let darkNeutralText: UInt = 0x66A9FF
+        static let lightAvailableText: UInt = 0x16703A
+        static let darkAvailableText: UInt = 0x63D98A
+        static let lightWarningText: UInt = 0x7A4D00
+        static let darkWarningText: UInt = 0xFFD60A
+        static let lightUrgentText: UInt = 0xB00020
+        static let darkUrgentText: UInt = 0xFF6961
+        static let lightAvailableMeter: UInt = 0x34C759
+        static let darkAvailableMeter: UInt = 0x30D158
+        static let lightWarningMeter: UInt = 0xF0A500
+        static let darkWarningMeter: UInt = 0xFFD60A
+        static let lightUrgentMeter: UInt = 0xD70015
+        static let darkUrgentMeter: UInt = 0xFF453A
+    }
+
     static var appBackground: Color {
         Color(lightHex: 0xF5F4F2, darkHex: 0x262628)
     }
@@ -15,7 +38,7 @@ enum CodexPalette {
     }
 
     static var cardBackground: Color {
-        Color(lightHex: 0xFFFFFF, darkHex: 0x323234)
+        Color(lightHex: Reference.lightCardBackground, darkHex: Reference.darkCardBackground)
     }
 
     static var panelBackground: Color {
@@ -47,11 +70,11 @@ enum CodexPalette {
     }
 
     static var secondaryText: Color {
-        primaryText.opacity(0.58)
+        Color(lightHex: Reference.lightSecondaryText, darkHex: Reference.darkSecondaryText)
     }
 
     static var mutedText: Color {
-        primaryText.opacity(0.42)
+        Color(lightHex: Reference.lightMutedText, darkHex: Reference.darkMutedText)
     }
 
     static var border: Color {
@@ -78,20 +101,36 @@ enum CodexPalette {
         Color(lightHex: 0x007AFF, darkHex: 0x0A84FF)
     }
 
+    static var neutralText: Color {
+        Color(lightHex: Reference.lightNeutralText, darkHex: Reference.darkNeutralText)
+    }
+
     static var meterTrack: Color {
         primaryText.opacity(0.09)
     }
 
     static var availableGreen: Color {
-        Color(lightHex: 0x34C759, darkHex: 0x30D158)
+        Color(lightHex: Reference.lightAvailableMeter, darkHex: Reference.darkAvailableMeter)
+    }
+
+    static var availableText: Color {
+        Color(lightHex: Reference.lightAvailableText, darkHex: Reference.darkAvailableText)
     }
 
     static var warningOrange: Color {
-        Color(lightHex: 0xF0A500, darkHex: 0xFFD60A)
+        Color(lightHex: Reference.lightWarningMeter, darkHex: Reference.darkWarningMeter)
+    }
+
+    static var warningText: Color {
+        Color(lightHex: Reference.lightWarningText, darkHex: Reference.darkWarningText)
     }
 
     static var urgentRed: Color {
-        Color(lightHex: 0xD70015, darkHex: 0xFF453A)
+        Color(lightHex: Reference.lightUrgentMeter, darkHex: Reference.darkUrgentMeter)
+    }
+
+    static var urgentText: Color {
+        Color(lightHex: Reference.lightUrgentText, darkHex: Reference.darkUrgentText)
     }
 
     static var attentionAmber: Color {

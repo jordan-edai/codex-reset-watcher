@@ -12,8 +12,10 @@ final class ResetCreditsStore: ObservableObject {
     }
 
     @Published private(set) var credits: [ResetCredit] = []
-    @Published private(set) var availableCount = 0
+    @Published private(set) var resetCountState: ResetCountState = .loading
+    @Published private(set) var liveState: LiveAccountState = .loading
     @Published private(set) var usage: CodexUsageResponse?
+    @Published private(set) var usageCapturedAt: Date?
     @Published private(set) var lastChecked: Date?
     @Published private(set) var isRefreshing = false
     @Published private(set) var creditsErrorMessage: String?
@@ -26,6 +28,7 @@ final class ResetCreditsStore: ObservableObject {
     private let client: CodexAPIClient
     private let snapshotPersistence: AccountSnapshotPersistence
     private var refreshTask: Task<Void, Never>?
+    private var activeAuthToken: String?
 
     init(
         client: CodexAPIClient = CodexAPIClient(),
@@ -38,6 +41,10 @@ final class ResetCreditsStore: ObservableObject {
 
     var availableCredits: [ResetCredit] {
         credits.filter(\.isAvailable)
+    }
+
+    var availableCount: Int {
+        resetCountState.count ?? 0
     }
 
     var creditDisplays: [ResetCreditDisplay] {
@@ -79,7 +86,14 @@ final class ResetCreditsStore: ObservableObject {
     }
 
     private var resetFallbackTitle: String {
-        "\(availableCount) reset\(availableCount == 1 ? "" : "s")"
+        switch resetCountState {
+        case .loading:
+            return "Checking resets..."
+        case let .known(count):
+            return "\(count) reset\(count == 1 ? "" : "s")"
+        case .unavailable:
+            return "Resets unavailable"
+        }
     }
 
     private func menuBarResetCue(for metric: MenuBarMetric, window: UsageLimitWindow) -> String {
@@ -109,7 +123,7 @@ final class ResetCreditsStore: ObservableObject {
         if !errorMessages.isEmpty, usage == nil, credits.isEmpty {
             return "exclamationmark.triangle"
         }
-        if usageWindows.contains(where: \.limitReached) {
+        if usage?.rateLimit?.limitReached == true || usage?.rateLimit?.allowed == false {
             return "exclamationmark.octagon"
         }
 
@@ -126,23 +140,48 @@ final class ResetCreditsStore: ObservableObject {
     }
 
     var usageWindows: [UsageLimitDisplay] {
-        displays(for: usage)
+        displays(for: usage, capturedAt: usageCapturedAt)
     }
 
     var nudge: UsageNudge {
-        if usage == nil, !errorMessages.isEmpty {
+        switch liveState {
+        case .loading where usage == nil:
+            return UsageNudge(
+                tier: .unavailable,
+                title: "Checking Codex",
+                message: "Loading current usage limits and reset credits.",
+                detail: "Live check in progress"
+            )
+        case .signedOut:
             return UsageNudge(
                 tier: .unavailable,
                 title: "Sign in to Codex",
                 message: "Open Codex Desktop, sign in, then refresh to load live usage windows.",
                 detail: "No live data"
             )
+        case .failed:
+            return UsageNudge(
+                tier: .unavailable,
+                title: "Could not load live data",
+                message: "Codex is signed in, but this check failed. Try refreshing again.",
+                detail: "Last check failed"
+            )
+        case .partial where usageErrorMessage != nil:
+            return UsageNudge(
+                tier: .unavailable,
+                title: "Usage limits unavailable",
+                message: "Reset credits loaded, but the usage limits did not. Refresh before making a reset decision.",
+                detail: "Partial live data"
+            )
+        default:
+            break
         }
 
         return UsageNudge.make(
             windows: usageWindows,
-            resetCount: availableCount,
-            resetUrgencies: resetUrgencies(for: availableCreditDisplays)
+            resetCount: resetCountState.count,
+            resetUrgencies: resetUrgencies(for: availableCreditDisplays),
+            globallyBlocked: usage?.rateLimit?.limitReached == true || usage?.rateLimit?.allowed == false
         )
     }
 
@@ -187,10 +226,20 @@ final class ResetCreditsStore: ObservableObject {
         if isRefreshing {
             return "Refreshing active account..."
         }
-        if usage == nil, credits.isEmpty, !errorMessages.isEmpty {
+        switch liveState {
+        case .loading:
+            return "Waiting for first check"
+        case .signedOut:
             return "No active Codex login"
+        case .failed:
+            return "Live check failed"
+        case .partial:
+            return "Some live data unavailable"
+        case .live:
+            return "Active now"
+        case .cached:
+            return "Saved account data"
         }
-        return "Active now"
     }
 
     func detail(for selection: AccountSelection? = nil) -> AccountDetailState {
@@ -288,6 +337,11 @@ final class ResetCreditsStore: ObservableObject {
             return
         }
 
+        isRefreshing = true
+        defer {
+            isRefreshing = false
+        }
+
         let context: CodexAuthContext
         do {
             context = try client.loadAuthContext()
@@ -298,11 +352,6 @@ final class ResetCreditsStore: ObservableObject {
 
         prepareForActiveContext(context)
 
-        isRefreshing = true
-        defer {
-            isRefreshing = false
-        }
-
         async let creditsTask = fetchResetCreditsResult(context: context)
         async let usageTask = fetchUsageResult(context: context)
         let creditsResult = await creditsTask
@@ -311,8 +360,11 @@ final class ResetCreditsStore: ObservableObject {
 
         if case let .changed(latestContext) = activeAccountChange(from: context) {
             if let latestContext {
+                activeAuthToken = latestContext.accessToken
                 clearActiveLiveData(context: latestContext, snapshotID: snapshotID(forAccountID: latestContext.accountId))
+                liveState = .failed
             } else {
+                activeAuthToken = nil
                 clearActiveLiveData(
                     context: CodexAuthContext(
                         accessToken: "",
@@ -321,7 +373,9 @@ final class ResetCreditsStore: ObservableObject {
                     ),
                     snapshotID: nil
                 )
+                liveState = .signedOut
             }
+            resetCountState = .unavailable
             usageErrorMessage = "Codex account changed during refresh. Refresh again to load the active account cleanly."
             creditsErrorMessage = nil
             lastChecked = refreshedAt
@@ -338,9 +392,12 @@ final class ResetCreditsStore: ObservableObject {
 
     private func applyMissingAuth(_ error: Error) {
         usage = nil
+        usageCapturedAt = nil
         credits = []
-        availableCount = 0
+        resetCountState = .unavailable
+        liveState = .signedOut
         activeSnapshotID = nil
+        activeAuthToken = nil
         accountIdentity = CodexAccountIdentity(accountId: nil, email: nil, name: nil)
         usageErrorMessage = refreshErrorMessage(area: "active account", error: error, hasPriorData: false)
         creditsErrorMessage = nil
@@ -350,28 +407,38 @@ final class ResetCreditsStore: ObservableObject {
 
     private func prepareForActiveContext(_ context: CodexAuthContext) {
         let contextSnapshotID = snapshotID(forAccountID: context.accountId)
+        let sameIDLessContext = contextSnapshotID == nil
+            && activeAuthToken != nil
+            && activeAuthToken == context.accessToken
+        let expectedSnapshotID = contextSnapshotID ?? (sameIDLessContext ? activeSnapshotID : nil)
         let shouldClear: Bool
-        if activeSnapshotID != contextSnapshotID {
-            shouldClear = true
-        } else if contextSnapshotID == nil, usage != nil || !credits.isEmpty {
+        if let contextSnapshotID {
+            shouldClear = activeSnapshotID != contextSnapshotID
+        } else if activeAuthToken == nil {
+            shouldClear = usage != nil || !credits.isEmpty
+        } else if !sameIDLessContext {
             shouldClear = true
         } else {
             shouldClear = false
         }
 
+        activeAuthToken = context.accessToken
+
         guard shouldClear else {
             return
         }
 
-        clearActiveLiveData(context: context, snapshotID: contextSnapshotID)
+        clearActiveLiveData(context: context, snapshotID: expectedSnapshotID)
         usageErrorMessage = nil
         creditsErrorMessage = nil
     }
 
     private func clearActiveLiveData(context: CodexAuthContext, snapshotID: AccountSnapshotID?) {
         usage = nil
+        usageCapturedAt = nil
         credits = []
-        availableCount = 0
+        resetCountState = .loading
+        liveState = .loading
         activeSnapshotID = snapshotID
         accountIdentity = context.identity
     }
@@ -391,13 +458,19 @@ final class ResetCreditsStore: ObservableObject {
         switch creditsResult {
         case let .success(response):
             credits = response.credits.sorted(by: sortByExpiry)
-            availableCount = response.availableCount
+            resetCountState = .known(response.availableCount)
             creditsErrorMessage = nil
         case let .failure(error):
             credits = []
-            availableCount = usageResponse?.rateLimitResetCredits?.availableCount ?? 0
+            if let fallbackCount = normalizedResetCreditCount(
+                usageResponse?.rateLimitResetCredits?.availableCount
+            ) {
+                resetCountState = .known(fallbackCount)
+            } else {
+                resetCountState = .unavailable
+            }
             creditsErrorMessage = refreshErrorMessage(
-                area: "reset stash",
+                area: "reset credits",
                 error: error,
                 hasPriorData: false
             )
@@ -406,11 +479,12 @@ final class ResetCreditsStore: ObservableObject {
         switch usageResult {
         case let .success(response):
             usage = response
+            usageCapturedAt = refreshedAt
             accountIdentity = identity(from: response, context: context)
             if creditsErrorMessage != nil,
                credits.isEmpty,
-               let fallbackCount = usage?.rateLimitResetCredits?.availableCount {
-                availableCount = fallbackCount
+               let fallbackCount = normalizedResetCreditCount(usage?.rateLimitResetCredits?.availableCount) {
+                resetCountState = .known(fallbackCount)
             }
             usageErrorMessage = nil
         case let .failure(error):
@@ -419,7 +493,18 @@ final class ResetCreditsStore: ObservableObject {
                 error: error,
                 hasPriorData: usage != nil
             )
-            accountIdentity = context.identity
+            if usage == nil {
+                accountIdentity = context.identity
+            }
+        }
+
+        switch (creditsResult, usageResult) {
+        case (.success(_), .success(_)):
+            liveState = .live
+        case (.success(_), .failure(_)), (.failure(_), .success(_)):
+            liveState = .partial
+        case (.failure(_), .failure(_)):
+            liveState = .failed
         }
 
         lastChecked = refreshedAt
@@ -494,24 +579,33 @@ final class ResetCreditsStore: ObservableObject {
         let windows = usageResponse.map { displays(for: $0).map { AccountUsageWindowSnapshot(display: $0, capturedAt: refreshedAt) } }
             ?? existing?.usageWindows
             ?? []
+        let usageCapturedAt = usageResponse == nil
+            ? existing?.usageCapturedAt ?? existing?.lastChecked ?? refreshedAt
+            : refreshedAt
         let resetExpiries = creditsResponse.map { response in
             response.credits
                 .filter(\.isAvailable)
                 .compactMap { DateFormatting.parse($0.expiresAt) }
                 .sorted()
         } ?? []
-        let resetCount = creditsResponse?.availableCount
-            ?? usageResponse?.rateLimitResetCredits?.availableCount
-            ?? 0
+        let fallbackResetCount = normalizedResetCreditCount(
+            usageResponse?.rateLimitResetCredits?.availableCount
+        )
+        let resetCount = creditsResponse?.availableCount ?? fallbackResetCount ?? 0
+        let resetCountKnown = creditsResponse != nil || fallbackResetCount != nil
 
         return CodexAccountSnapshot(
             id: id,
             nickname: existing?.nickname,
-            displayLabel: snapshotIdentity.displayLabel,
+            displayLabel: usageResponse == nil
+                ? existing?.displayLabel ?? snapshotIdentity.displayLabel
+                : snapshotIdentity.displayLabel,
             planLabel: usageResponse.map { planLabel(for: $0) } ?? existing?.planLabel ?? "Codex",
             lastChecked: hasAnySuccess ? refreshedAt : existing?.lastChecked ?? refreshedAt,
+            usageCapturedAt: usageCapturedAt,
             usageWindows: windows,
             resetCount: resetCount,
+            resetCountKnown: resetCountKnown,
             resetExpiries: resetExpiries,
             status: CodexAccountSnapshot.status(errors: errors, hasAnySuccess: hasAnySuccess),
             errors: errors
@@ -542,7 +636,14 @@ final class ResetCreditsStore: ObservableObject {
         }
 
         let usageAccountID = normalizedAccountID(usageResponse?.accountId)
-        return SnapshotIDResolution(id: snapshotID(forAccountID: usageAccountID))
+        if let usageAccountID {
+            return SnapshotIDResolution(id: snapshotID(forAccountID: usageAccountID))
+        }
+
+        if activeAuthToken == context.accessToken {
+            return SnapshotIDResolution(id: activeSnapshotID)
+        }
+        return SnapshotIDResolution(id: nil)
     }
 
     private func snapshotID(forAccountID accountID: String?) -> AccountSnapshotID? {
@@ -571,8 +672,10 @@ final class ResetCreditsStore: ObservableObject {
             statusDetail: activeSidebarDetail,
             lastChecked: lastChecked,
             availableCount: availableCount,
+            resetCountState: resetCountState,
+            liveState: liveState,
             staleSnapshotCount: staleCachedSnapshotCount,
-            credits: creditDisplays,
+            credits: availableCreditDisplays,
             usageWindows: usageWindows,
             nudge: nudge,
             errorMessages: errorMessages,
@@ -581,7 +684,8 @@ final class ResetCreditsStore: ObservableObject {
             isStale: false,
             isRefreshing: isRefreshing,
             canRefresh: true,
-            canForget: false
+            canForget: false,
+            refreshActionTitle: "Refresh"
         )
     }
 
@@ -589,21 +693,15 @@ final class ResetCreditsStore: ObservableObject {
         let stale = snapshot.isStale()
         let windows = snapshot.displays()
         let credits = snapshot.creditDisplays()
-        let nudge: UsageNudge
-        if stale {
-            nudge = UsageNudge(
-                tier: .unavailable,
-                title: "Stale snapshot",
-                message: "These numbers are from the last time this account was active. Sign into this Codex account to refresh it.",
-                detail: "Cached"
-            )
-        } else {
-            nudge = UsageNudge.make(
-                windows: windows,
-                resetCount: snapshot.resetCount,
-                resetUrgencies: resetUrgencies(for: credits)
-            )
-        }
+        let resetCountState: ResetCountState = snapshot.resetCountKnown
+            ? .known(snapshot.resetCount)
+            : .unavailable
+        let nudge = UsageNudge(
+            tier: .unavailable,
+            title: stale ? "Cached data is out of date" : "Saved account data",
+            message: "This is last-seen information, not live advice. Refresh the active account before deciding whether to use a reset credit.",
+            detail: "Refresh checks the active account"
+        )
 
         return AccountDetailState(
             selection: .cached(snapshot.id),
@@ -611,9 +709,11 @@ final class ResetCreditsStore: ObservableObject {
             accountLabel: snapshot.effectiveLabel,
             planLabel: snapshot.planLabel,
             statusTitle: stale ? "Stale snapshot" : "Cached snapshot",
-            statusDetail: "Last refreshed \(DateFormatting.weekdayCompact(snapshot.lastChecked))",
+            statusDetail: "Saved \(DateFormatting.weekdayCompact(snapshot.lastChecked)); refresh checks the active account",
             lastChecked: snapshot.lastChecked,
             availableCount: snapshot.resetCount,
+            resetCountState: resetCountState,
+            liveState: .cached,
             staleSnapshotCount: staleCachedSnapshotCount,
             credits: credits,
             usageWindows: windows,
@@ -623,23 +723,29 @@ final class ResetCreditsStore: ObservableObject {
             isCached: true,
             isStale: stale,
             isRefreshing: false,
-            canRefresh: false,
-            canForget: true
+            canRefresh: true,
+            canForget: true,
+            refreshActionTitle: "Refresh active account"
         )
     }
 
-    private func displays(for usage: CodexUsageResponse?) -> [UsageLimitDisplay] {
+    private func displays(
+        for usage: CodexUsageResponse?,
+        capturedAt: Date? = nil,
+        now: Date = Date()
+    ) -> [UsageLimitDisplay] {
         guard let rateLimit = usage?.rateLimit else {
             return []
         }
 
         var windows: [UsageLimitDisplay] = []
         var seenKinds: Set<UsageLimitDisplay.Kind> = []
+        let blocked = rateLimit.limitReached == true || rateLimit.allowed == false
         if let primary = rateLimit.primaryWindow {
             appendDisplay(
                 for: primary,
                 fallbackID: "primary",
-                limitReached: rateLimit.limitReached == true || rateLimit.allowed == false,
+                limitReached: blocked && (primary.remainingPercent == 0 || primary.remainingPercent == nil),
                 to: &windows,
                 seenKinds: &seenKinds
             )
@@ -648,12 +754,41 @@ final class ResetCreditsStore: ObservableObject {
             appendDisplay(
                 for: secondary,
                 fallbackID: "secondary",
-                limitReached: rateLimit.limitReached == true || rateLimit.allowed == false,
+                limitReached: blocked && (secondary.remainingPercent == 0 || secondary.remainingPercent == nil),
                 to: &windows,
                 seenKinds: &seenKinds
             )
         }
-        return windows
+
+        if windows.isEmpty, blocked {
+            windows.append(
+                UsageLimitDisplay(
+                    id: "blocked-limit",
+                    kind: .generic,
+                    title: "Current limit",
+                    window: UsageLimitWindow(
+                        usedPercent: nil,
+                        limitWindowSeconds: nil,
+                        resetAfterSeconds: nil,
+                        resetAt: nil
+                    ),
+                    limitReached: true
+                )
+            )
+        }
+
+        guard let capturedAt else {
+            return windows
+        }
+        return windows.map { display in
+            UsageLimitDisplay(
+                id: display.id,
+                kind: display.kind,
+                title: display.title,
+                window: display.window.anchored(capturedAt: capturedAt, now: now),
+                limitReached: display.limitReached
+            )
+        }
     }
 
     private func planLabel(for usage: CodexUsageResponse?) -> String {
@@ -803,7 +938,7 @@ final class ResetCreditsStore: ObservableObject {
         case .usageFailed:
             return "Usage meters did not refresh."
         case .resetCreditsFailed:
-            return "Reset stash did not refresh."
+            return "Reset credits did not refresh."
         case .persistenceFailed:
             return "Account snapshot could not be saved."
         }

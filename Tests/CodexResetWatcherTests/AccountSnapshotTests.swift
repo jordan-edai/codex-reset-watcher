@@ -126,6 +126,48 @@ final class AccountSnapshotPersistenceTests: XCTestCase {
         XCTAssertTrue(snapshot.isStale(now: Date(timeIntervalSince1970: 1_800_000_010)))
     }
 
+    func testHostileSnapshotResetCountBecomesUnknownInsteadOfConfirmedZero() {
+        let snapshot = CodexAccountSnapshot(
+            id: AccountSnapshotID(rawValue: "hostile-count"),
+            displayLabel: "Cached",
+            planLabel: "Pro",
+            lastChecked: Date(timeIntervalSince1970: 1_800_000_000),
+            usageWindows: [],
+            resetCount: Int.min,
+            resetCountKnown: true,
+            resetExpiries: [],
+            status: .ok,
+            errors: []
+        )
+
+        XCTAssertEqual(snapshot.resetCount, 0)
+        XCTAssertFalse(snapshot.resetCountKnown)
+    }
+
+    func testHostileCachedWindowValuesAreSanitizedBeforeCountdownMath() throws {
+        let data = """
+        {
+          "id": "hostile-window",
+          "kind": "fiveHour",
+          "title": "5h limit",
+          "usedPercent": -9223372036854775808,
+          "limitWindowSeconds": 18000,
+          "resetAfterSeconds": 9223372036854775807
+        }
+        """.data(using: .utf8)!
+
+        let window = try JSONDecoder().decode(AccountUsageWindowSnapshot.self, from: data)
+        let display = window.display(
+            cachedAt: Date(timeIntervalSince1970: 1_800_000_000),
+            now: Date(timeIntervalSince1970: 1_800_000_001)
+        )
+
+        XCTAssertEqual(display.usedPercent, 0)
+        XCTAssertEqual(display.remainingPercent, 100)
+        XCTAssertNil(display.window.resetAfterSeconds)
+        XCTAssertFalse(display.limitReached)
+    }
+
     func testSnapshotSkipsImplausibleResetDateWithoutCrashing() throws {
         let capturedAt = Date(timeIntervalSince1970: 1_800_000_000)
         let window = AccountUsageWindowSnapshot(
@@ -170,7 +212,8 @@ final class AccountSnapshotPersistenceTests: XCTestCase {
             id: AccountSnapshotID(rawValue: "duration-only"),
             displayLabel: "Cached",
             planLabel: "Pro",
-            lastChecked: capturedAt,
+            lastChecked: capturedAt.addingTimeInterval(30),
+            usageCapturedAt: capturedAt,
             usageWindows: [window],
             resetCount: 0,
             resetExpiries: [],
@@ -187,6 +230,98 @@ final class AccountSnapshotPersistenceTests: XCTestCase {
         XCTAssertEqual(window.display(cachedAt: capturedAt, now: expired).window.resetAfterSeconds, 0)
     }
 
+    func testBlockedStateSurvivesSnapshotRoundTrip() throws {
+        let directory = try makeTemporaryDirectory()
+        let persistence = AccountSnapshotPersistence(
+            fileURL: directory.appendingPathComponent("account-snapshots.json"),
+            salt: "unit-test-salt"
+        )
+        let capturedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let snapshot = CodexAccountSnapshot(
+            id: AccountSnapshotID(rawValue: "blocked"),
+            displayLabel: "Cached",
+            planLabel: "Pro",
+            lastChecked: capturedAt,
+            usageWindows: [
+                AccountUsageWindowSnapshot(
+                    display: UsageLimitDisplay(
+                        id: "five-hour",
+                        kind: .fiveHour,
+                        title: "5h limit",
+                        window: UsageLimitWindow(
+                            usedPercent: 20,
+                            limitWindowSeconds: 18_000,
+                            resetAfterSeconds: 3_600,
+                            resetAt: nil
+                        ),
+                        limitReached: true
+                    ),
+                    capturedAt: capturedAt
+                )
+            ],
+            resetCount: 1,
+            resetExpiries: [],
+            status: .ok,
+            errors: []
+        )
+
+        try persistence.save([snapshot])
+        let loaded = try XCTUnwrap(persistence.load().first)
+
+        XCTAssertTrue(try XCTUnwrap(loaded.usageWindows.first).limitReached)
+    }
+
+    func testLegacySnapshotDefaultsNewStateFieldsWithoutLosingBlockedZero() throws {
+        let capturedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let snapshot = CodexAccountSnapshot(
+            id: AccountSnapshotID(rawValue: "legacy"),
+            displayLabel: "Cached",
+            planLabel: "Pro",
+            lastChecked: capturedAt,
+            usageWindows: [
+                AccountUsageWindowSnapshot(
+                    display: UsageLimitDisplay(
+                        id: "weekly",
+                        kind: .weekly,
+                        title: "Weekly limit",
+                        window: UsageLimitWindow(
+                            usedPercent: 100,
+                            limitWindowSeconds: 604_800,
+                            resetAfterSeconds: 86_400,
+                            resetAt: nil
+                        ),
+                        limitReached: true
+                    ),
+                    capturedAt: capturedAt
+                )
+            ],
+            resetCount: 1,
+            resetExpiries: [],
+            status: .ok,
+            errors: []
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let encoded = try encoder.encode(snapshot)
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        object.removeValue(forKey: "usageCapturedAt")
+        object.removeValue(forKey: "resetCountKnown")
+        var windows = try XCTUnwrap(object["usageWindows"] as? [[String: Any]])
+        windows[0].removeValue(forKey: "limitReached")
+        object["usageWindows"] = windows
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(
+            CodexAccountSnapshot.self,
+            from: JSONSerialization.data(withJSONObject: object)
+        )
+
+        XCTAssertEqual(decoded.usageCapturedAt, capturedAt)
+        XCTAssertTrue(decoded.resetCountKnown)
+        XCTAssertTrue(try XCTUnwrap(decoded.usageWindows.first).limitReached)
+    }
+
     private func makeTemporaryDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -197,6 +332,17 @@ final class AccountSnapshotPersistenceTests: XCTestCase {
 
 @MainActor
 final class AccountSnapshotStoreTests: XCTestCase {
+    func testInitialStateDoesNotPresentUnknownResetCountAsZero() throws {
+        let harness = try StoreHarness()
+        let store = ResetCreditsStore(client: harness.baseClient, snapshotPersistence: harness.persistence)
+
+        XCTAssertEqual(store.liveState, .loading)
+        XCTAssertEqual(store.resetCountState, .loading)
+        XCTAssertEqual(store.menuBarTitle, "Checking resets...")
+        XCTAssertEqual(store.nudge.title, "Checking Codex")
+        XCTAssertFalse(store.detail(for: .active).resetCountState.isKnown)
+    }
+
     func testRefreshPersistsSafeSnapshotForActiveAccount() async throws {
         let harness = try StoreHarness()
         let store = ResetCreditsStore(client: harness.client(accountID: "acct_a"), snapshotPersistence: harness.persistence)
@@ -208,6 +354,8 @@ final class AccountSnapshotStoreTests: XCTestCase {
         XCTAssertEqual(store.accountDisplayLabel, "builder@example.com")
         XCTAssertEqual(store.snapshots.first?.resetCount, 1)
         XCTAssertEqual(store.snapshots.first?.usageWindows.count, 2)
+        XCTAssertEqual(store.liveState, .live)
+        XCTAssertEqual(store.resetCountState, .known(1))
     }
 
     func testAccountSwitchRaceDoesNotPersistMixedSnapshot() async throws {
@@ -353,6 +501,42 @@ final class AccountSnapshotStoreTests: XCTestCase {
         XCTAssertEqual(store.accountDisplayLabel, "builder@example.com")
     }
 
+    func testRepeatedIDLessAuthRefreshRetainsEstablishedSnapshotWhenUsageTemporarilyFails() async throws {
+        let harness = try StoreHarness()
+        try harness.writeAuthWithoutAccountID()
+        let attempts = UsageAttemptState()
+        var client = harness.baseClient
+        client.perform = { request in
+            if request.url?.path == "/backend-api/wham/usage" {
+                let attempt = await attempts.next()
+                if attempt > 1 {
+                    return (Data("{}".utf8), testHTTPResponse(status: 500, contentType: "application/json"))
+                }
+                return try harness.successResponse(
+                    for: request,
+                    email: "builder@example.com",
+                    accountID: "acct_from_usage"
+                )
+            }
+            return try harness.successResponse(for: request, email: "builder@example.com")
+        }
+        let store = ResetCreditsStore(client: client, snapshotPersistence: harness.persistence)
+
+        await store.refresh()
+        let firstID = try XCTUnwrap(store.activeSnapshotID)
+        let firstCapture = try XCTUnwrap(store.snapshots.first?.usageCapturedAt)
+
+        await store.refresh()
+
+        XCTAssertEqual(store.activeSnapshotID, firstID)
+        XCTAssertEqual(store.cachedSnapshots.count, 0)
+        XCTAssertEqual(store.snapshots.count, 1)
+        XCTAssertEqual(store.snapshots.first?.usageCapturedAt, firstCapture)
+        XCTAssertEqual(store.snapshots.first?.resetCountKnown, true)
+        XCTAssertEqual(store.liveState, .partial)
+        XCTAssertEqual(store.nudge.title, "Usage limits unavailable")
+    }
+
     func testMissingAuthPreservesCachedSnapshotsWithoutShowingThemAsActive() async throws {
         let harness = try StoreHarness()
         let existing = try harness.sampleSnapshot(accountID: "acct_cached")
@@ -369,6 +553,8 @@ final class AccountSnapshotStoreTests: XCTestCase {
         XCTAssertNil(store.lastChecked)
         XCTAssertEqual(store.selectedAccount, .active)
         XCTAssertEqual(store.nudge.title, "Sign in to Codex")
+        XCTAssertEqual(store.liveState, .signedOut)
+        XCTAssertEqual(store.resetCountState, .unavailable)
         let message = store.errorMessages.joined(separator: " ")
         XCTAssertTrue(message.contains("active account"))
         XCTAssertFalse(message.contains(harness.authURL.path))
@@ -398,6 +584,23 @@ final class AccountSnapshotStoreTests: XCTestCase {
         XCTAssertFalse(message.contains("charset"))
     }
 
+    func testValidAuthEndpointOutageIsNotCalledMissingLogin() async throws {
+        let harness = try StoreHarness()
+        let store = ResetCreditsStore(
+            client: harness.client(accountID: "acct_a", failResetCredits: true, failUsage: true),
+            snapshotPersistence: harness.persistence
+        )
+
+        await store.refresh()
+
+        XCTAssertEqual(store.liveState, .failed)
+        XCTAssertEqual(store.resetCountState, .unavailable)
+        XCTAssertEqual(store.nudge.title, "Could not load live data")
+        XCTAssertEqual(store.detail(for: .active).statusDetail, "Live check failed")
+        XCTAssertFalse(store.nudge.message.localizedCaseInsensitiveContains("sign in"))
+        XCTAssertFalse(store.detail(for: .active).statusDetail.localizedCaseInsensitiveContains("login"))
+    }
+
     func testPartialEndpointFailurePersistsSuccessfulUsageWithCoarseError() async throws {
         let harness = try StoreHarness()
         let store = ResetCreditsStore(
@@ -412,6 +615,9 @@ final class AccountSnapshotStoreTests: XCTestCase {
         XCTAssertTrue(snapshot.errors.contains(.resetCreditsFailed))
         XCTAssertEqual(snapshot.usageWindows.count, 2)
         XCTAssertEqual(snapshot.resetCount, 0)
+        XCTAssertFalse(snapshot.resetCountKnown)
+        XCTAssertEqual(store.resetCountState, .unavailable)
+        XCTAssertEqual(store.nudge.title, "Reset credits unavailable")
     }
 
     func testResetCreditFailureDoesNotCarryPriorExpiryRowsForward() async throws {
@@ -493,6 +699,26 @@ final class AccountSnapshotStoreTests: XCTestCase {
         XCTAssertEqual(persisted.usageWindows, existing.usageWindows)
         XCTAssertEqual(store.availableCount, 0)
         XCTAssertTrue(store.usageWindows.isEmpty)
+        XCTAssertEqual(store.liveState, .failed)
+        XCTAssertEqual(store.resetCountState, .unavailable)
+    }
+
+    func testCachedDetailNeverProvidesLiveSpendOrHoldAdviceAndCanRefreshActiveAccount() throws {
+        let harness = try StoreHarness()
+        let existing = try harness.sampleSnapshot(accountID: "acct_cached")
+        try harness.persistence.save([existing])
+        let store = ResetCreditsStore(client: harness.baseClient, snapshotPersistence: harness.persistence)
+
+        store.selectCachedAccount(existing.id)
+        let detail = store.detail()
+
+        XCTAssertTrue(detail.isCached)
+        XCTAssertEqual(detail.liveState, .cached)
+        XCTAssertEqual(detail.nudge.tier, .unavailable)
+        XCTAssertEqual(detail.nudge.title, "Saved account data")
+        XCTAssertTrue(detail.canRefresh)
+        XCTAssertEqual(detail.refreshActionTitle, "Refresh active account")
+        XCTAssertTrue(detail.nudge.message.contains("not live advice"))
     }
 
     func testForgetAndClearCachedAccountsPersistDeletion() async throws {
@@ -537,6 +763,15 @@ private actor RequestState {
     private var count = 0
 
     func record() -> Int {
+        count += 1
+        return count
+    }
+}
+
+private actor UsageAttemptState {
+    private var count = 0
+
+    func next() -> Int {
         count += 1
         return count
     }

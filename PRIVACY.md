@@ -17,7 +17,7 @@ https://chatgpt.com/backend-api/wham/rate-limit-reset-credits
 
 The app only trusts those exact HTTPS endpoints. Requests with another host,
 path, query string, fragment, userinfo, or custom port are rejected before the
-network request is sent.
+network request is sent, and redirects to an untrusted final URL are rejected.
 
 The app does not:
 
@@ -27,6 +27,7 @@ The app does not:
 - send data to third-party services
 - include analytics
 - copy or store your token outside the running app process
+- use a shared URL cache, cookie store, or credential store for refresh requests
 
 The app displays the active account label when Codex exposes one, plus plan
 type, rate-limit window percentages, reset timing, and reset-credit expiry data
@@ -64,4 +65,7 @@ cookies, API keys, or reset credit IDs.
 Cached accounts are not refreshed in the background. A cached account updates
 only when that account is again the active Codex Desktop login.
 
-If an endpoint or Codex auth format changes, the app may stop working or show partial data.
+If an endpoint or Codex auth format changes, the app may stop working or show
+partial data. Empty, HTML, and semantically unrecognized successful responses
+are treated as errors so they cannot replace a valid snapshot with fresh-looking
+empty data.

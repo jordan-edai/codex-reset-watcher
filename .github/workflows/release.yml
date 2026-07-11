@@ -15,6 +15,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag commit is on main
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" refs/remotes/origin/main; then
+            echo "Release tag commit is not reachable from origin/main: $GITHUB_SHA" >&2
+            exit 1
+          fi
 
       - name: Swift version
         run: swift --version
@@ -43,6 +54,26 @@ jobs:
           test -f "$APP_BUNDLE/Contents/Resources/UsageHeader.png"
           /usr/bin/plutil -lint "$INFO_PLIST"
 
+          APP_BINARY="$APP_BUNDLE/Contents/MacOS/CodexResetWatcher"
+          ARCHS="$(/usr/bin/lipo -archs "$APP_BINARY")"
+          for REQUIRED_ARCH in arm64 x86_64; do
+            if [[ " $ARCHS " != *" $REQUIRED_ARCH "* ]]; then
+              echo "Release executable is missing $REQUIRED_ARCH: $ARCHS" >&2
+              exit 1
+            fi
+          done
+
+          SECRET_PATTERN='([[:alnum:]._%+-]+@[[:alnum:].-]+\.[[:alpha:]]{2,})|(acct_[[:alnum:]_-]{8,})|(eyJ[[:alnum:]_-]{10,}\.[[:alnum:]_-]{10,}\.[[:alnum:]_-]{10,})|(sk-(proj-)?[[:alnum:]_-]{16,})|(Bearer[[:space:]]+[[:alnum:]_.-]{16,})|(/Users/[^[:space:]]+/\.codex/auth\.json)|("(access_token|id_token|refresh_token)"[[:space:]]*:)|(\{"(available_count|reset_credits|plan_type|rate_limit)"[[:space:]]*:)'
+          STRINGS_OUTPUT="$(mktemp)"
+          trap 'rm -f "$STRINGS_OUTPUT"' EXIT
+          /usr/bin/strings -a "$APP_BINARY" > "$STRINGS_OUTPUT"
+          if /usr/bin/grep -En "$SECRET_PATTERN" "$STRINGS_OUTPUT"; then
+            echo "Release executable contains a possible secret or raw private payload" >&2
+            exit 1
+          fi
+          rm -f "$STRINGS_OUTPUT"
+          trap - EXIT
+
           APP_VERSION="$(/usr/bin/plutil -extract CFBundleShortVersionString raw -o - "$INFO_PLIST")"
           if [[ "$APP_VERSION" != "$TAG_VERSION" ]]; then
             echo "Tag version $TAG_VERSION does not match app version $APP_VERSION" >&2
@@ -58,7 +89,7 @@ jobs:
           echo "RELEASE_ZIP=$RELEASE_ZIP" >> "$GITHUB_ENV"
 
       - name: Upload release asset
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: ${{ env.RELEASE_ZIP }}
           body_path: CHANGELOG.md
