@@ -3,8 +3,6 @@ import SwiftUI
 
 struct MenuBarStatusView: View {
     private static let visibleResetCreditLimit = 4
-    private static let visibleCachedSnapshotLimit = 3
-    private static let dynamicContentTopID = "menu-dynamic-content-top"
 
     @ObservedObject var store: ResetCreditsStore
     @ObservedObject var mainWindowController: MainWindowController
@@ -38,7 +36,8 @@ struct MenuBarStatusView: View {
 
             Divider()
 
-            boundedDynamicContent
+            dynamicContent
+                .fixedSize(horizontal: false, vertical: true)
 
             Divider()
 
@@ -49,67 +48,22 @@ struct MenuBarStatusView: View {
         .background(CodexPalette.menuPopoverBackground)
     }
 
-    private var boundedDynamicContent: some View {
-        let maximumHeight = MenuPopoverSizing.currentMaximumDynamicContentHeight()
-
-        return ViewThatFits(in: .vertical) {
-            dynamicContent
-                .fixedSize(horizontal: false, vertical: true)
-
-            constrainedDynamicContent(maximumHeight: maximumHeight)
-        }
-        .frame(maxHeight: maximumHeight)
-    }
-
-    private func constrainedDynamicContent(maximumHeight: CGFloat) -> some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    Color.clear
-                        .frame(height: 0)
-                        .id(Self.dynamicContentTopID)
-
-                    dynamicContent
-                }
-            }
-            .frame(height: maximumHeight)
-            .scrollIndicators(.visible)
-            .scrollBounceBehavior(.basedOnSize)
-            .defaultScrollAnchor(.top)
-            .onAppear {
-                resetMenuScrollPosition(proxy)
-            }
-            .onChange(of: store.lastChecked) {
-                resetMenuScrollPosition(proxy)
-            }
-        }
-    }
-
-    private func resetMenuScrollPosition(_ proxy: ScrollViewProxy) {
-        DispatchQueue.main.async {
-            proxy.scrollTo(Self.dynamicContentTopID, anchor: .top)
-        }
-    }
-
     private var dynamicContent: some View {
         VStack(alignment: .leading, spacing: 9) {
-            nudgeRow
-
             ForEach(store.errorMessages, id: \.self) { message in
                 errorRow(message)
             }
+
+            displaySettingsSection
+
+            Divider()
 
             currentLimitsSection
             resetRows
 
             Divider()
 
-            displaySettingsSection
-
-            if !store.cachedSnapshots.isEmpty {
-                Divider()
-                cachedSnapshotsSection
-            }
+            nudgeRow
         }
     }
 
@@ -139,7 +93,7 @@ struct MenuBarStatusView: View {
 
     private var currentLimitsSection: some View {
         VStack(alignment: .leading, spacing: 7) {
-            menuSectionHeader("Current limits", detail: currentLimitsDetail)
+            menuSectionHeader(MenuBarSection.currentLimits.rawValue, detail: currentLimitsDetail)
 
             if store.usageWindows.isEmpty {
                 emptyLimitsRow
@@ -153,7 +107,7 @@ struct MenuBarStatusView: View {
 
     private var displaySettingsSection: some View {
         VStack(alignment: .leading, spacing: 7) {
-            menuSectionHeader("Display settings")
+            menuSectionHeader(MenuBarSection.displaySettings.rawValue)
             menuBarDisplayRow
             appearanceRow
         }
@@ -294,7 +248,7 @@ struct MenuBarStatusView: View {
 
     private var resetRows: some View {
         VStack(alignment: .leading, spacing: 7) {
-            menuSectionHeader("Reset credits", detail: resetCountDetail)
+            menuSectionHeader(MenuBarSection.bankedResetsExpiration.rawValue, detail: resetCountDetail)
 
             ForEach(visibleResetCredits, id: \.element.id) { index, credit in
                 resetExpiryRow(index: index, credit: credit)
@@ -446,119 +400,6 @@ struct MenuBarStatusView: View {
 
     private var missingVisibleResetCreditCount: Int {
         max(0, visibleResetRowCount - visibleResetCredits.count)
-    }
-
-    private var cachedSnapshotsSection: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Cached snapshots")
-                    .font(CodexStyle.Typography.menuRowMeta.weight(.semibold))
-                    .foregroundStyle(CodexPalette.secondaryText)
-                Spacer()
-                Text("\(store.cachedSnapshots.count) total")
-                    .font(CodexStyle.Typography.menuRowMeta)
-                    .foregroundStyle(CodexPalette.secondaryText)
-            }
-            .padding(.horizontal, 2)
-
-            ForEach(Array(store.cachedSnapshots.prefix(Self.visibleCachedSnapshotLimit))) { snapshot in
-                cachedAccountRow(snapshot)
-            }
-
-            if store.cachedSnapshots.count > Self.visibleCachedSnapshotLimit {
-                cachedSnapshotsOverflowRow
-            }
-
-            if store.staleCachedSnapshotCount > 0 {
-                clearStaleRow
-            }
-        }
-    }
-
-    private func cachedAccountRow(_ snapshot: CodexAccountSnapshot) -> some View {
-        Button {
-            store.selectCachedAccount(snapshot.id)
-            showMainWindow()
-        } label: {
-            HStack(alignment: .center, spacing: CodexStyle.Spacing.rowGap) {
-                CodexIconBadge(
-                    systemName: snapshot.isStale() ? "clock.badge.exclamationmark" : "clock.arrow.circlepath",
-                    tone: snapshot.isStale() ? .warning : .muted,
-                    size: 24,
-                    symbolSize: CodexStyle.Icon.menu
-                )
-                .frame(width: CodexStyle.Size.menuIconColumn)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(snapshot.effectiveLabel)
-                        .font(CodexStyle.Typography.menuRowTitle)
-                        .foregroundStyle(CodexPalette.primaryText)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-
-                    Text(snapshot.isStale() ? "Stale cached snapshot" : "Cached snapshot")
-                        .font(CodexStyle.Typography.menuRowMeta)
-                        .foregroundStyle(snapshot.isStale() ? CodexPalette.warningText : CodexPalette.secondaryText)
-                        .lineLimit(1)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .layoutPriority(1)
-
-                Text(DateFormatting.timeOnly(snapshot.lastChecked))
-                    .font(CodexStyle.Typography.menuRowMeta)
-                    .foregroundStyle(CodexPalette.secondaryText)
-                    .lineLimit(1)
-                    .frame(width: CodexStyle.Size.menuDateColumn, alignment: .trailing)
-            }
-        }
-        .buttonStyle(.plain)
-        .codexRow(minHeight: 50)
-    }
-
-    private var cachedSnapshotsOverflowRow: some View {
-        Button {
-            showMainWindow()
-        } label: {
-            HStack(alignment: .center, spacing: CodexStyle.Spacing.rowGap) {
-                CodexIconBadge(systemName: "ellipsis", tone: .muted, size: 24, symbolSize: CodexStyle.Icon.menu)
-                    .frame(width: CodexStyle.Size.menuIconColumn)
-
-                Text("\(store.cachedSnapshots.count - Self.visibleCachedSnapshotLimit) more cached \(store.cachedSnapshots.count - Self.visibleCachedSnapshotLimit == 1 ? "snapshot" : "snapshots")")
-                    .font(CodexStyle.Typography.menuRowTitle)
-                    .foregroundStyle(CodexPalette.primaryText)
-                    .lineLimit(1)
-
-                Spacer()
-
-                Text("Desktop")
-                    .font(CodexStyle.Typography.menuRowMeta)
-                    .foregroundStyle(CodexPalette.secondaryText)
-                    .lineLimit(1)
-                    .frame(width: CodexStyle.Size.menuDateColumn, alignment: .trailing)
-            }
-        }
-        .buttonStyle(.plain)
-        .codexRow(minHeight: 48)
-    }
-
-    private var clearStaleRow: some View {
-        Button {
-            store.clearStaleSnapshots()
-        } label: {
-            HStack(alignment: .center, spacing: CodexStyle.Spacing.rowGap) {
-                CodexIconBadge(systemName: "clock.badge.exclamationmark", tone: .warning, size: 24, symbolSize: CodexStyle.Icon.menu)
-                    .frame(width: CodexStyle.Size.menuIconColumn)
-
-                Text("Clear stale snapshots")
-                    .font(CodexStyle.Typography.menuRowTitle)
-                    .foregroundStyle(CodexPalette.primaryText)
-                    .lineLimit(1)
-
-                Spacer()
-            }
-        }
-        .buttonStyle(.plain)
-        .codexRow(minHeight: 48)
     }
 
     private func menuSectionHeader(_ title: String, detail: String? = nil) -> some View {

@@ -10,9 +10,9 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Public GitHub repo: `https://github.com/jordan-edai/codex-reset-watcher`
 - Canonical local path: `/Users/everydayai/Documents/!Codex Projects/Rate Refresher Project`
 - Compatibility path: `/Users/everydayai/Documents/Rate Refresher Project`
-- Latest shipped release: `v0.4.1`
+- Latest shipped release: `v0.4.2`
 - Check `git log --oneline --decorate -5` for the current `main` commit; this
-  note tracks the repo state through the `v0.4.1` adaptive menu-height fix.
+  note tracks the repo state through the `v0.4.2` natural-height menu fix.
 - App bundle version is set in `script/build_and_run.sh`.
 
 ## Product Decisions
@@ -63,15 +63,14 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
   that rhythm when adding rows so labels do not bleed into popover edges.
 - Keep the menu dropdown comfortably sized. Do not solve menu fit by stacking
   overly dense rows; widen the popover and use readable row heights when reset
-  credits, cached snapshots, and footer actions are all visible together.
-- The menu dropdown must show its complete natural content whenever the active
-  screen can fit it. Never impose a fixed height cap that hides current limits
-  or reset expiry dates on a roomy screen.
-- Use scrolling only when the active screen cannot fit the full dropdown. A
-  constrained dropdown must open at the top every time; do not preserve a prior
-  scroll offset across close/reopen or a data refresh.
-- Current limits and reset expiry dates come before display settings and cached
-  snapshots. Secondary controls must not displace the app's core information.
+  credits and footer actions are visible together.
+- The menu dropdown must hug its intrinsic content height. Do not add a
+  screen-sized frame, forced viewport, `ScrollView`, or `ViewThatFits` wrapper
+  that stretches it beyond the height its visible rows require.
+- Menu section order is fixed: `Display settings`, `Current limits`, then
+  `Banked Resets Expiration`, followed by the usage nudge.
+- Cached snapshots and their cleanup actions belong only in the full desktop
+  app. Do not add them back to the menu dropdown.
 - The active account label can come from the usage response email, local
   `id_token` email/name, or the generic `Codex account` fallback. Do not expose
   account-ID suffixes in user-facing labels.
@@ -98,8 +97,8 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - User-facing copy should call non-active saved records `cached snapshots`, not
   linked accounts or profiles. They are local last-seen records only.
 - Stale cached snapshots must be removable without clearing all cached
-  snapshots. Keep `Clear stale` available from the desktop sidebar/footer and
-  menu dropdown, and keep the selected stale row action labeled `Forget stale`.
+  snapshots. Keep `Clear stale` available from the desktop sidebar/footer, and
+  keep the selected stale row action labeled `Forget stale`.
 - Before claiming a two-real-account flow is verified on a user machine, manual
   QA must include signing into a second real Codex Desktop account and checking
   that the previous login appears only as a cached snapshot.

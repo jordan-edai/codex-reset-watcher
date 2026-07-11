@@ -72,14 +72,10 @@ Menu bar dropdown:
 
 - Keep the active account at the top.
 - Keep the menu bar title focused on the active account only.
-- Keep cached snapshots secondary to current limits and reset expiry dates. They
-  must not force primary content into a clipped or stale scroll position when
-  the active screen can fit the complete dropdown.
-- Show cached snapshots in a compact `Cached snapshots` section.
-- Cached snapshot rows open the main window detail; they do not change the menu
-  bar title.
-- Cached snapshot rows must reuse/focus the existing main window. Do not open a
-  fresh main window for each row click.
+- Do not show cached snapshots or cached-snapshot cleanup actions in the menu.
+  Account history and selection belong in the full desktop app.
+- Keep the menu's natural-height section order: display settings, current
+  limits, banked reset expiration, then the usage nudge.
 
 Main window:
 
