@@ -69,25 +69,14 @@ final class DesignSystemTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(CodexStyle.Typography.sidebarDetailSize, 11)
     }
 
-    func testMenuPopoverUsesAvailableScreenHeightInsteadOfAStaticCap() {
-        let tallScreenHeight: CGFloat = 1_127
-        let maximumHeight = MenuPopoverSizing.maximumDynamicContentHeight(
-            for: tallScreenHeight
-        )
-
-        XCTAssertGreaterThan(maximumHeight, 620)
+    func testMenuBarSectionOrderKeepsBankedResetDatesPrimary() {
         XCTAssertEqual(
-            maximumHeight,
-            tallScreenHeight
-                - CodexStyle.Size.menuFixedChromeHeight
-                - CodexStyle.Size.menuScreenEdgeInset
+            MenuBarSection.allCases,
+            [.displaySettings, .currentLimits, .bankedResetsExpiration]
         )
-    }
-
-    func testMenuPopoverKeepsAUsableFallbackOnShortScreens() {
         XCTAssertEqual(
-            MenuPopoverSizing.maximumDynamicContentHeight(for: 400),
-            CodexStyle.Size.menuMinimumDynamicContentHeight
+            MenuBarSection.bankedResetsExpiration.rawValue,
+            "Banked Resets Expiration"
         )
     }
 

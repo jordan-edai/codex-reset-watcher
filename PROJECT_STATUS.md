@@ -17,24 +17,24 @@ https://github.com/jordan-edai/codex-reset-watcher
 Current release:
 
 ```text
-v0.4.1
+v0.4.2
 ```
 
 Latest tracked release state:
 
 ```text
-v0.4.1 adaptive menu-height regression fix
+v0.4.2 natural-height menu and section-order fix
 ```
 
 Latest local release branch:
 
 ```text
-codex/v0.4.1-menu-full-content
+codex/v0.4.2-natural-menu-height
 ```
 
-The v0.4.1 fix removes the v0.4.0 menu's fixed 620-point content cap. The menu
-now uses the active screen's visible height, shows all content when it fits, and
-resets its short-screen fallback scroller to the top on open and refresh.
+The v0.4.2 fix removes the v0.4.1 screen-sized viewport entirely. The menu now
+hugs its intrinsic content height, uses the requested settings/limits/banked
+expiration order, and leaves cached snapshots in the full desktop app only.
 
 ## What Is Shipped
 
@@ -95,12 +95,15 @@ resets its short-screen fallback scroller to the top on open and refresh.
 - `v0.4.1`: fixes the menu reopening partway down, removes the static content
   height cap, expands to the active screen when possible, and keeps scrolling as
   a top-anchored fallback only for genuinely constrained screens.
+- `v0.4.2`: removes that v0.4.1 fallback viewport after it created large blank
+  bands, restores intrinsic menu height, reorders the menu sections, renames the
+  reset section, and removes cached snapshots from the dropdown.
 
 ## Current GitHub State
 
 - Repo is public.
 - Repo description: `Local-first macOS menu bar app for Codex usage limits and reset credits.`
-- Latest release is `v0.4.1`.
+- Latest release is `v0.4.2`.
 - `v0.2.0` release asset cleanup was completed; the duplicate generic
   `Codex.Reset.Watcher.zip` was removed and the versioned zip was kept.
 - v0.3.4 audit fixes restored per-snapshot menu navigation, distinguish
@@ -134,6 +137,8 @@ resets its short-screen fallback scroller to the top on open and refresh.
 - Release `v0.4.1` restores the menu's primary job: current limits and reset
   expiry dates remain visible whenever the active screen has room for the full
   dropdown.
+- Release `v0.4.2` corrects the remaining v0.4.1 height regression by removing
+  forced menu sizing and simplifying the dropdown to its active-account content.
 - PR #1 shipped usage limits and reset nudges.
 - PR #2 shipped the weekly menu bar title.
 - PR #4 fixed the visible menu bar label and versioned release upload path.
@@ -273,7 +278,7 @@ unless the user explicitly asks.
 
 ## Latest Local Verification
 
-The `v0.4.1` release candidate was locally verified on 2026-07-11 with:
+The `v0.4.2` release candidate was locally verified on 2026-07-11 with:
 
 ```bash
 swift test --scratch-path /tmp/codex-reset-watcher-test --jobs 1
@@ -283,25 +288,23 @@ CONFIGURATION=release ./script/build_and_run.sh --verify
 plutil -extract CFBundleShortVersionString raw -o - \
   "dist/Codex Reset Watcher.app/Contents/Info.plist"
 codesign --verify --deep --strict "dist/Codex Reset Watcher.app"
-unzip -t "dist/Codex.Reset.Watcher.v0.4.1.zip"
+unzip -t "dist/Codex.Reset.Watcher.v0.4.2.zip"
 strings "dist/Codex Reset Watcher.app/Contents/MacOS/CodexResetWatcher" | rg \
   "youreverydayai|everydayai|acct_|user_|credit-full|eyJ|access_token|refresh_token|id_token|auth\\.json|rate_limit"
 ```
 
 The final string scan returned no matches.
 
-The SwiftPM suite passed 107 tests. The release workflow also checks the tag
+The SwiftPM suite passed 106 tests. The release workflow also checks the tag
 version, universal arm64/x86_64 packaging, signature, zip integrity, and
 sensitive-string scan before publishing an asset.
 
 The packaged app opened successfully during local smoke QA. Screenshot checks
 confirmed the active desktop view, current limits, reset-credit rows, cached
 snapshot sidebar, and the real menu bar title render from the release bundle.
-Interactive Computer Use was unavailable in this run. Menu-height QA therefore
-used the reported screenshot, the active screen's measured 1,127-point visible
-height, deterministic tall/short-screen sizing tests, a rebuilt app launch, and
-an `ImageRenderer` geometry check of the real three-reset menu view. That view
-rendered at 470 by 729 points with all three expiry dates present, so it fits the
-current screen without invoking the fallback scroller. The release must not
-claim a fresh click-through of close/reopen behavior until Computer Use or a
-manual tester confirms it in the packaged build.
+Menu-height QA used the reported v0.4.1 screenshot plus an `ImageRenderer`
+geometry check of the real three-reset menu view. The corrected view rendered at
+470 by 740 points with no forced frame, no top/bottom blank bands, the requested
+section order, all three expiry dates, and no cached-snapshot section. Native
+segmented controls and buttons still require a live-window check because
+`ImageRenderer` does not faithfully draw those AppKit-backed controls.

@@ -11,8 +11,7 @@ It reads your existing local Codex Desktop login from `~/.codex/auth.json`, call
 - usage bars that turn green, amber, or red based on remaining capacity
 - menu bar display switching between weekly reset-day and 5h reset-time cues,
   for example `57% | Sunday` or `80% | 9:50 PM`
-- an adaptive menu dropdown that shows all content when the active screen can
-  fit it and scrolls from the top only when screen height is genuinely limited
+- a natural-height menu dropdown with no forced full-screen viewport
 - Light, Dark, and Auto appearance modes shared by the menu dropdown and main
   window
 - active account label from the current local Codex login or usage response
@@ -39,7 +38,7 @@ No API key is required.
 ## Install
 
 1. Download the versioned zip asset from the latest GitHub release, for example
-   `Codex.Reset.Watcher.v0.4.1.zip`.
+   `Codex.Reset.Watcher.v0.4.2.zip`.
 2. Unzip it.
 3. Drag `Codex Reset Watcher.app` into `/Applications`.
 4. Open it.
@@ -124,10 +123,11 @@ spacing values, radii, typography styles, meters, and panel/row modifiers for
 menu and desktop UI changes so the app stays visually consistent. See
 [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) before making visual changes.
 
-The menu dropdown must prefer its full natural height. Current limits and every
-visible reset expiry are primary content; a static height cap must never hide
-them on a screen that has room. Scrolling is a short-screen fallback and must
-open at the top.
+The menu dropdown uses its natural content height: it must not be stretched to
+the screen height or wrapped in a forced-height viewport. Its section order is
+`Display settings`, `Current limits`, and `Banked Resets Expiration`, followed
+by the nudge. Cached snapshots remain available in the full desktop app and are
+not repeated in the menu dropdown.
 
 ## What It Calls
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.2 - 2026-07-11
+
+- Removes the v0.4.1 screen-sized menu viewport that created large empty bands
+  above and below the real content.
+- Lets the menu dropdown use its intrinsic SwiftUI height with no forced frame,
+  `ScrollView`, or `ViewThatFits` sizing layer.
+- Reorders menu sections to `Display settings`, `Current limits`, then
+  `Banked Resets Expiration`, with the usage nudge after the primary sections.
+- Renames the menu's reset section to `Banked Resets Expiration`.
+- Removes cached snapshots and stale-snapshot cleanup from the menu dropdown;
+  those account-management controls remain in the full desktop app.
+- Adds a regression test for the required menu section order and label.
+
 ## 0.4.1 - 2026-07-11
 
 - Fixes the v0.4.0 menu-bar regression that could reopen the dropdown partway

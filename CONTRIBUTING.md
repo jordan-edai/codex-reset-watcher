@@ -49,9 +49,9 @@ open "dist/Codex Reset Watcher.app"
   `arm64` and `x86_64` slices, the versioned zip opens cleanly, and the binary
   contains no emails, account IDs, JWT-looking strings, token prefixes, local
   auth paths, or raw endpoint JSON.
-- Menu-bar UI changes require real popover QA on a roomy screen and a constrained
-  screen. Confirm full content is shown when it fits, and confirm the fallback
-  scroller reopens at the top with limits and reset dates first.
+- Menu-bar UI changes require real popover QA. Confirm the dropdown hugs its
+  visible rows with no forced-height blank bands, uses the documented section
+  order, shows all banked reset dates, and contains no cached-snapshot section.
 - Keep release zips versioned. Do not upload wildcard or stale `dist/` artifacts.
 
 ## Icon
