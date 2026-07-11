@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.1 - 2026-07-11
+
+- Fixes the v0.4.0 menu-bar regression that could reopen the dropdown partway
+  down and hide current limits or reset-credit expiry dates.
+- Removes the fixed 620-point dynamic-content cap. The dropdown now uses the
+  active screen's available height and shows its full natural content whenever
+  that screen can fit it.
+- Keeps scrolling only as a constrained-screen fallback, gives that fallback a
+  deterministic viewport height, and resets it to the top whenever it appears
+  or live data refreshes.
+- Adds regression tests for tall-screen expansion and short-screen fallback
+  sizing.
+
 ## 0.4.0 - 2026-07-11
 
 - Makes missing data explicit: loading, partial, signed-out, failed, and cached

@@ -10,10 +10,9 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Public GitHub repo: `https://github.com/jordan-edai/codex-reset-watcher`
 - Canonical local path: `/Users/everydayai/Documents/!Codex Projects/Rate Refresher Project`
 - Compatibility path: `/Users/everydayai/Documents/Rate Refresher Project`
-- Latest shipped release: `v0.4.0`
+- Latest shipped release: `v0.4.1`
 - Check `git log --oneline --decorate -5` for the current `main` commit; this
-  note tracks the repo state through the `v0.4.0` reliability and release
-  hardening pass.
+  note tracks the repo state through the `v0.4.1` adaptive menu-height fix.
 - App bundle version is set in `script/build_and_run.sh`.
 
 ## Product Decisions
@@ -65,6 +64,14 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Keep the menu dropdown comfortably sized. Do not solve menu fit by stacking
   overly dense rows; widen the popover and use readable row heights when reset
   credits, cached snapshots, and footer actions are all visible together.
+- The menu dropdown must show its complete natural content whenever the active
+  screen can fit it. Never impose a fixed height cap that hides current limits
+  or reset expiry dates on a roomy screen.
+- Use scrolling only when the active screen cannot fit the full dropdown. A
+  constrained dropdown must open at the top every time; do not preserve a prior
+  scroll offset across close/reopen or a data refresh.
+- Current limits and reset expiry dates come before display settings and cached
+  snapshots. Secondary controls must not displace the app's core information.
 - The active account label can come from the usage response email, local
   `id_token` email/name, or the generic `Codex account` fallback. Do not expose
   account-ID suffixes in user-facing labels.

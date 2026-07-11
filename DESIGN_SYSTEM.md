@@ -47,6 +47,14 @@ the visual priority.
 - The menu dropdown may be tall enough to breathe. Do not compress every row to
   keep all possible content above the fold; if the real popover feels jammed,
   prefer a wider menu and comfortable row heights before shrinking type.
+- On any screen that can fit the dropdown's full natural content, show 100% of
+  it with no scroll viewport. Do not use a static maximum height for the menu.
+- When the screen is genuinely too short, use a bounded scroll fallback sized
+  from that screen's visible frame. It must start at the top on every open and
+  after refresh so current limits and reset expiry dates are never hidden by a
+  stale scroll position.
+- Keep current limits and reset expiry rows ahead of display settings and cached
+  snapshots. Those dates are the menu's primary job.
 - Preserve count honesty: when a server count is higher than decoded display
   rows, render a calm unavailable/missing row instead of making the count and
   visible rows disagree.
@@ -89,6 +97,8 @@ CONFIGURATION=release ./script/build_and_run.sh --verify
 
 Then open the real macOS menu bar dropdown and check:
 
+- on a roomy screen, the complete dropdown is visible without scrolling
+- after scrolling, closing, and reopening, the dropdown starts at the top
 - both usage rows are visible without truncating the important reset timing
 - reset rows fit without scrolling when one or two resets are banked
 - the active segmented control is readable

@@ -67,8 +67,28 @@ final class DesignSystemTests: XCTestCase {
     func testSidebarAndMenuSizingKeepsCoreContentReadable() {
         XCTAssertGreaterThanOrEqual(CodexStyle.Typography.sidebarTitleSize, 12)
         XCTAssertGreaterThanOrEqual(CodexStyle.Typography.sidebarDetailSize, 11)
-        XCTAssertGreaterThanOrEqual(CodexStyle.Size.menuDynamicContentMaxHeight, 560)
-        XCTAssertLessThanOrEqual(CodexStyle.Size.menuDynamicContentMaxHeight, 680)
+    }
+
+    func testMenuPopoverUsesAvailableScreenHeightInsteadOfAStaticCap() {
+        let tallScreenHeight: CGFloat = 1_127
+        let maximumHeight = MenuPopoverSizing.maximumDynamicContentHeight(
+            for: tallScreenHeight
+        )
+
+        XCTAssertGreaterThan(maximumHeight, 620)
+        XCTAssertEqual(
+            maximumHeight,
+            tallScreenHeight
+                - CodexStyle.Size.menuFixedChromeHeight
+                - CodexStyle.Size.menuScreenEdgeInset
+        )
+    }
+
+    func testMenuPopoverKeepsAUsableFallbackOnShortScreens() {
+        XCTAssertEqual(
+            MenuPopoverSizing.maximumDynamicContentHeight(for: 400),
+            CodexStyle.Size.menuMinimumDynamicContentHeight
+        )
     }
 
     private func contrastRatio(_ first: UInt, _ second: UInt) -> Double {

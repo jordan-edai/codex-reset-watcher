@@ -72,6 +72,9 @@ Menu bar dropdown:
 
 - Keep the active account at the top.
 - Keep the menu bar title focused on the active account only.
+- Keep cached snapshots secondary to current limits and reset expiry dates. They
+  must not force primary content into a clipped or stale scroll position when
+  the active screen can fit the complete dropdown.
 - Show cached snapshots in a compact `Cached snapshots` section.
 - Cached snapshot rows open the main window detail; they do not change the menu
   bar title.

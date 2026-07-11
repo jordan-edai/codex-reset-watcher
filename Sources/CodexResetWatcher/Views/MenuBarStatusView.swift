@@ -4,6 +4,7 @@ import SwiftUI
 struct MenuBarStatusView: View {
     private static let visibleResetCreditLimit = 4
     private static let visibleCachedSnapshotLimit = 3
+    private static let dynamicContentTopID = "menu-dynamic-content-top"
 
     @ObservedObject var store: ResetCreditsStore
     @ObservedObject var mainWindowController: MainWindowController
@@ -49,17 +50,45 @@ struct MenuBarStatusView: View {
     }
 
     private var boundedDynamicContent: some View {
-        ViewThatFits(in: .vertical) {
+        let maximumHeight = MenuPopoverSizing.currentMaximumDynamicContentHeight()
+
+        return ViewThatFits(in: .vertical) {
             dynamicContent
                 .fixedSize(horizontal: false, vertical: true)
 
+            constrainedDynamicContent(maximumHeight: maximumHeight)
+        }
+        .frame(maxHeight: maximumHeight)
+    }
+
+    private func constrainedDynamicContent(maximumHeight: CGFloat) -> some View {
+        ScrollViewReader { proxy in
             ScrollView {
-                dynamicContent
+                VStack(alignment: .leading, spacing: 0) {
+                    Color.clear
+                        .frame(height: 0)
+                        .id(Self.dynamicContentTopID)
+
+                    dynamicContent
+                }
             }
+            .frame(height: maximumHeight)
             .scrollIndicators(.visible)
             .scrollBounceBehavior(.basedOnSize)
+            .defaultScrollAnchor(.top)
+            .onAppear {
+                resetMenuScrollPosition(proxy)
+            }
+            .onChange(of: store.lastChecked) {
+                resetMenuScrollPosition(proxy)
+            }
         }
-        .frame(maxHeight: CodexStyle.Size.menuDynamicContentMaxHeight)
+    }
+
+    private func resetMenuScrollPosition(_ proxy: ScrollViewProxy) {
+        DispatchQueue.main.async {
+            proxy.scrollTo(Self.dynamicContentTopID, anchor: .top)
+        }
     }
 
     private var dynamicContent: some View {

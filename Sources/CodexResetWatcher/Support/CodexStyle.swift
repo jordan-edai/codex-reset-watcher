@@ -37,7 +37,10 @@ enum CodexStyle {
         static let menuDateColumn: CGFloat = 142
         static let menuControlWidth: CGFloat = 150
         static let menuRowMinHeight: CGFloat = 50
-        static let menuDynamicContentMaxHeight: CGFloat = 620
+        static let menuFixedChromeHeight: CGFloat = 170
+        static let menuScreenEdgeInset: CGFloat = 16
+        static let menuMinimumDynamicContentHeight: CGFloat = 320
+        static let menuFallbackScreenHeight: CGFloat = 900
         static let artworkWidth: CGFloat = 88
         static let artworkHeight: CGFloat = 52
         static let compactArtworkWidth: CGFloat = 66
