@@ -81,6 +81,10 @@ struct CodexResetWatcherApp: App {
                 Text(store.menuBarTitle(for: menuBarMetric))
                     .monospacedDigit()
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Codex Reset Watcher")
+            .accessibilityValue(store.menuBarTitle(for: menuBarMetric))
+            .help("Codex Reset Watcher: \(store.menuBarTitle(for: menuBarMetric))")
         }
         .menuBarExtraStyle(.window)
     }

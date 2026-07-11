@@ -22,6 +22,11 @@ Codex Reset Watcher:
   - `https://chatgpt.com/backend-api/wham/rate-limit-reset-credits`
 - rejects non-exact endpoint URLs before a request is sent, including URLs with
   another host, another path, userinfo, query string, fragment, or custom port
+- rejects redirects when the final response URL is not one of those exact
+  trusted endpoints
+- rejects empty auth tokens before a request is sent
+- rejects semantically empty or unrecognized successful JSON responses instead
+  of treating them as valid zero-data responses
 - sends the active account id in the `ChatGPT-Account-Id` header to those same endpoints when Codex auth exposes it
 - does not redeem resets
 - does not write to the auth file
@@ -33,6 +38,8 @@ Codex Reset Watcher:
   endpoint JSON, full account IDs, user IDs, cookies, API keys, or reset credit
   IDs in snapshots
 - does not include analytics or telemetry
+- uses a dedicated stateless URL session without shared cookies, URL cache, or
+  credential persistence for refresh calls
 
 Each refresh loads one auth context and uses it for both usage and reset-credit
 requests so the app does not mix account identities if Codex Desktop changes

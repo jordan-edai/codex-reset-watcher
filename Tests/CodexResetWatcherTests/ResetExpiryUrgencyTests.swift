@@ -46,6 +46,20 @@ final class ResetExpiryUrgencyTests: XCTestCase {
         )
 
         XCTAssertEqual(urgency.level, .urgent)
+        XCTAssertEqual(urgency.badge, "Within 24 hours")
+        XCTAssertEqual(urgency.hint, "Use it soon if useful work needs it")
+    }
+
+    func testSameCalendarDayUsesEndsToday() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let calendarNow = calendar.date(from: DateComponents(year: 2027, month: 1, day: 15, hour: 9))!
+        let urgency = ResetExpiryUrgency.make(
+            expiresAt: calendarNow.addingTimeInterval(8 * 3_600),
+            now: calendarNow,
+            isAvailable: true
+        )
+
         XCTAssertEqual(urgency.badge, "Ends today")
     }
 

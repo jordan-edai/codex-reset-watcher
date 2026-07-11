@@ -2,7 +2,7 @@ import XCTest
 @testable import CodexResetWatcher
 
 final class DecodeTests: XCTestCase {
-    func testResetCreditsDecodeDropsOnlyMalformedElementsAndDerivesCount() throws {
+    func testResetCreditsDecodeAllowsMissingIDsAndDerivesCount() throws {
         let json = """
         {
           "credits": [
@@ -29,9 +29,9 @@ final class DecodeTests: XCTestCase {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         let response = try decoder.decode(ResetCreditsResponse.self, from: json)
 
-        XCTAssertEqual(response.credits.map(\.id), ["123", "credit-2"])
+        XCTAssertEqual(response.credits.map(\.id), ["123", "", "credit-2"])
         XCTAssertEqual(response.credits.first?.resetType, "unknown")
-        XCTAssertEqual(response.availableCount, 1)
+        XCTAssertEqual(response.availableCount, 2)
         XCTAssertTrue(response.credits.first?.isAvailable == true)
     }
 
@@ -102,6 +102,47 @@ final class DecodeTests: XCTestCase {
         XCTAssertEqual(try decoder.decode(ResetCreditsResponse.self, from: creditsJSON).availableCount, 0)
     }
 
+    func testHostileIntegerDomainsAreSanitizedBeforeArithmetic() throws {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let json = """
+        {
+          "rate_limit": {
+            "primary_window": {
+              "used_percent": -9223372036854775808,
+              "limit_window_seconds": -1,
+              "reset_after_seconds": -9223372036854775808
+            },
+            "secondary_window": {
+              "used_percent": 9223372036854775807,
+              "limit_window_seconds": 9223372036854775807,
+              "reset_after_seconds": 9223372036854775807
+            }
+          },
+          "rate_limit_reset_credits": {
+            "available_count": 9223372036854775807
+          }
+        }
+        """.data(using: .utf8)!
+
+        let usage = try decoder.decode(CodexUsageResponse.self, from: json)
+        let primary = try XCTUnwrap(usage.rateLimit?.primaryWindow)
+        let secondary = try XCTUnwrap(usage.rateLimit?.secondaryWindow)
+
+        XCTAssertEqual(primary.usedPercent, 0)
+        XCTAssertEqual(primary.remainingPercent, 100)
+        XCTAssertNil(primary.limitWindowSeconds)
+        XCTAssertNil(primary.resetAfterSeconds)
+        XCTAssertEqual(secondary.usedPercent, 100)
+        XCTAssertEqual(secondary.remainingPercent, 0)
+        XCTAssertNil(secondary.limitWindowSeconds)
+        XCTAssertNil(secondary.resetAfterSeconds)
+        XCTAssertEqual(usage.rateLimitResetCredits?.availableCount, ResetCreditsResponse.maximumDisplayCount)
+
+        let negativeCount = #"{"available_count":-9223372036854775808,"credits":[]}"#.data(using: .utf8)!
+        XCTAssertEqual(try decoder.decode(ResetCreditsResponse.self, from: negativeCount).availableCount, 0)
+    }
+
     func testUsageResetAtAcceptsSecondsAndMilliseconds() {
         let seconds = UsageLimitWindow(
             usedPercent: 10,
@@ -151,7 +192,7 @@ final class DecodeTests: XCTestCase {
     }
 
     @MainActor
-    func testWeekdayCompactIncludesDayOfWeek() {
+    func testWeekdayCompactIncludesDayOfWeek() throws {
         var components = DateComponents()
         components.calendar = Calendar(identifier: .gregorian)
         components.timeZone = .current
@@ -161,13 +202,15 @@ final class DecodeTests: XCTestCase {
         components.hour = 19
         components.minute = 38
 
-        let value = DateFormatting.weekdayCompact(components.date)
-
-        XCTAssertTrue(value.hasPrefix("Fri, Jul 17 at "))
+        let date = try XCTUnwrap(components.date)
+        XCTAssertEqual(
+            DateFormatting.weekdayCompact(date),
+            localizedDate(date, template: "EEE MMM d j:mm")
+        )
     }
 
     @MainActor
-    func testWeekdayDateAndTimeOnlySplitMenuDates() {
+    func testWeekdayDateAndTimeOnlySplitMenuDates() throws {
         var components = DateComponents()
         components.calendar = Calendar(identifier: .gregorian)
         components.timeZone = .current
@@ -177,8 +220,9 @@ final class DecodeTests: XCTestCase {
         components.hour = 19
         components.minute = 38
 
-        XCTAssertEqual(DateFormatting.weekdayDate(components.date), "Fri, Jul 17")
-        XCTAssertEqual(DateFormatting.timeOnly(components.date), "7:38 PM")
+        let date = try XCTUnwrap(components.date)
+        XCTAssertEqual(DateFormatting.weekdayDate(date), localizedDate(date, template: "EEE MMMd"))
+        XCTAssertEqual(DateFormatting.timeOnly(date), localizedDate(date, template: "jm"))
     }
 
     @MainActor
@@ -277,6 +321,43 @@ final class CodexAPIClientTests: XCTestCase {
         }
     }
 
+    func testSemanticallyEmptyJSONResponseHasClearError() async throws {
+        let client = try makeClient { _ in
+            (Data(#"{"error":"warming up"}"#.utf8), testHTTPResponse(status: 200, contentType: "application/json"))
+        }
+
+        do {
+            _ = try await client.fetchUsage()
+            XCTFail("Expected emptyResponse")
+        } catch CodexAPIError.emptyResponse {
+        }
+    }
+
+    func testEmptyAccessTokenIsRejectedBeforeNetworkRequest() async throws {
+        let client = try makeClient(
+            authJSON: #"{"tokens":{"access_token":"   "}}"#
+        ) { _ in
+            throw TestError.unexpectedEndpoint
+        }
+
+        do {
+            _ = try client.loadAuthContext()
+            XCTFail("Expected invalidAuth")
+        } catch CodexAPIError.invalidAuth {
+        }
+    }
+
+    func testMalformedPrimaryWindowDoesNotDiscardValidSecondaryWindow() throws {
+        let body = Data(#"{"rate_limit":{"primary_window":"bad","secondary_window":{"used_percent":20,"limit_window_seconds":604800}}}"#.utf8)
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let response = try decoder.decode(CodexUsageResponse.self, from: body)
+
+        XCTAssertNil(response.rateLimit?.primaryWindow)
+        XCTAssertEqual(response.rateLimit?.secondaryWindow?.remainingPercent, 80)
+        XCTAssertTrue(response.hasRecognizedPayload)
+    }
+
     func testHTMLSuccessfulResponseHasClearError() async throws {
         let client = try makeClient { _ in
             ("<html></html>".data(using: .utf8)!, testHTTPResponse(status: 200, contentType: "text/html"))
@@ -304,7 +385,7 @@ final class CodexAPIClientTests: XCTestCase {
     }
 
     @MainActor
-    func testStoreUsesServerAvailableCountWhenCreditRowsArePartiallyMalformed() async throws {
+    func testStoreUsesServerCountAndActiveDetailShowsAvailableCreditsOnly() async throws {
         let client = try makeClient { request in
             switch request.url?.path {
             case "/backend-api/wham/rate-limit-reset-credits":
@@ -320,6 +401,11 @@ final class CodexAPIClientTests: XCTestCase {
                     {
                       "status": "available",
                       "expires_at": "2026-07-12T21:13:00Z"
+                    },
+                    {
+                      "id": "credit-used",
+                      "status": "redeemed",
+                      "expires_at": "2026-07-13T21:13:00Z"
                     }
                   ]
                 }
@@ -334,12 +420,16 @@ final class CodexAPIClientTests: XCTestCase {
                 throw TestError.unexpectedEndpoint
             }
         }
-        let store = ResetCreditsStore(client: client)
+        let store = ResetCreditsStore(client: client, snapshotPersistence: try makeTemporaryPersistence())
 
         await store.refresh()
 
-        XCTAssertEqual(store.availableCredits.count, 1)
+        XCTAssertEqual(store.credits.count, 3)
+        XCTAssertEqual(store.availableCredits.count, 2)
         XCTAssertEqual(store.availableCount, 2)
+        XCTAssertEqual(store.availableCreditDisplays.map(\.id), ["credit-1", "active-available-reset-1"])
+        XCTAssertEqual(store.detail(for: .active).credits.count, 2)
+        XCTAssertTrue(store.detail(for: .active).credits.allSatisfy(\.isAvailable))
     }
 
     @MainActor
@@ -379,13 +469,15 @@ final class CodexAPIClientTests: XCTestCase {
                 throw TestError.unexpectedEndpoint
             }
         }
-        let store = ResetCreditsStore(client: client)
+        let store = ResetCreditsStore(client: client, snapshotPersistence: try makeTemporaryPersistence())
 
         await store.refresh()
 
-        XCTAssertEqual(store.menuBarTitle, "63% | Sunday")
-        XCTAssertEqual(store.menuBarTitle(for: .weekly), "63% | Sunday")
-        XCTAssertEqual(store.menuBarTitle(for: .fiveHour), "29% | 9:50 PM")
+        let weeklyResetDate = Date(timeIntervalSince1970: TimeInterval(weeklyResetAt))
+        let fiveHourResetDate = Date(timeIntervalSince1970: TimeInterval(fiveHourResetAt))
+        XCTAssertEqual(store.menuBarTitle, "63% | \(DateFormatting.weekdayName(weeklyResetDate))")
+        XCTAssertEqual(store.menuBarTitle(for: .weekly), "63% | \(DateFormatting.weekdayName(weeklyResetDate))")
+        XCTAssertEqual(store.menuBarTitle(for: .fiveHour), "29% | \(DateFormatting.timeOnly(fiveHourResetDate))")
         XCTAssertEqual(store.accountDisplayLabel, "builder@example.com")
     }
 
@@ -425,14 +517,20 @@ final class CodexAPIClientTests: XCTestCase {
                 throw TestError.unexpectedEndpoint
             }
         }
-        let store = ResetCreditsStore(client: client)
+        let store = ResetCreditsStore(client: client, snapshotPersistence: try makeTemporaryPersistence())
 
         await store.refresh()
 
         XCTAssertEqual(store.usageWindow(for: .weekly)?.id, "weekly")
         XCTAssertEqual(store.usageWindow(for: .fiveHour)?.id, "five-hour")
-        XCTAssertEqual(store.menuBarTitle(for: .weekly), "63% | Sunday")
-        XCTAssertEqual(store.menuBarTitle(for: .fiveHour), "29% | 9:50 PM")
+        XCTAssertEqual(
+            store.menuBarTitle(for: .weekly),
+            "63% | \(DateFormatting.weekdayName(Date(timeIntervalSince1970: TimeInterval(weeklyResetAt))))"
+        )
+        XCTAssertEqual(
+            store.menuBarTitle(for: .fiveHour),
+            "29% | \(DateFormatting.timeOnly(Date(timeIntervalSince1970: TimeInterval(fiveHourResetAt))))"
+        )
     }
 
     @MainActor
@@ -465,7 +563,7 @@ final class CodexAPIClientTests: XCTestCase {
                 throw TestError.unexpectedEndpoint
             }
         }
-        let store = ResetCreditsStore(client: client)
+        let store = ResetCreditsStore(client: client, snapshotPersistence: try makeTemporaryPersistence())
 
         await store.refresh()
 
@@ -507,7 +605,7 @@ final class CodexAPIClientTests: XCTestCase {
                 throw TestError.unexpectedEndpoint
             }
         }
-        let store = ResetCreditsStore(client: client)
+        let store = ResetCreditsStore(client: client, snapshotPersistence: try makeTemporaryPersistence())
 
         await store.refresh()
 
@@ -549,14 +647,43 @@ final class CodexAPIClientTests: XCTestCase {
                 throw TestError.unexpectedEndpoint
             }
         }
-        let store = ResetCreditsStore(client: client)
+        let store = ResetCreditsStore(client: client, snapshotPersistence: try makeTemporaryPersistence())
 
         await store.refresh()
 
-        XCTAssertTrue(store.usageWindows.allSatisfy(\.limitReached))
+        XCTAssertTrue(store.usageWindows.allSatisfy { !$0.limitReached })
         XCTAssertEqual(store.nudge.tier, .blocked)
         XCTAssertEqual(store.nudge.title, "Blocked now")
         XCTAssertEqual(store.statusSymbolName, "exclamationmark.octagon")
+    }
+
+    @MainActor
+    func testBlockedResponseWithoutWindowsStillSurfacesBlockedState() async throws {
+        let client = try makeClient { request in
+            switch request.url?.path {
+            case "/backend-api/wham/rate-limit-reset-credits":
+                return (
+                    Data(#"{"available_count":1,"credits":[]}"#.utf8),
+                    testHTTPResponse(status: 200, contentType: "application/json")
+                )
+            case "/backend-api/wham/usage":
+                return (
+                    Data(#"{"plan_type":"pro","rate_limit":{"allowed":false,"limit_reached":true}}"#.utf8),
+                    testHTTPResponse(status: 200, contentType: "application/json")
+                )
+            default:
+                throw TestError.unexpectedEndpoint
+            }
+        }
+        let store = ResetCreditsStore(client: client, snapshotPersistence: try makeTemporaryPersistence())
+
+        await store.refresh()
+
+        XCTAssertEqual(store.usageWindows.count, 1)
+        XCTAssertEqual(store.usageWindows.first?.kind, .generic)
+        XCTAssertTrue(store.usageWindows.first?.limitReached == true)
+        XCTAssertEqual(store.nudge.tier, .blocked)
+        XCTAssertEqual(store.snapshots.first?.usageWindows.first?.limitReached, true)
     }
 
     private func makeClient(
@@ -573,6 +700,17 @@ final class CodexAPIClientTests: XCTestCase {
         client.codexHome = directory
         client.perform = perform
         return client
+    }
+
+    private func makeTemporaryPersistence() throws -> AccountSnapshotPersistence {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        XCTAssertTrue(directory.path.hasPrefix(FileManager.default.temporaryDirectory.path))
+        return AccountSnapshotPersistence(
+            fileURL: directory.appendingPathComponent("account-snapshots.json"),
+            salt: "decode-tests-salt"
+        )
     }
 
 }
@@ -599,6 +737,17 @@ private func localTimestamp(year: Int, month: Int, day: Int, hour: Int, minute: 
     components.hour = hour
     components.minute = minute
     return Int(components.date!.timeIntervalSince1970)
+}
+
+private func localizedDate(_ date: Date, template: String) -> String {
+    let formatter = DateFormatter()
+    formatter.locale = .autoupdatingCurrent
+    formatter.calendar = .autoupdatingCurrent
+    formatter.timeZone = .autoupdatingCurrent
+    formatter.setLocalizedDateFormatFromTemplate(template)
+    return formatter.string(from: date)
+        .replacingOccurrences(of: "\u{202F}", with: " ")
+        .replacingOccurrences(of: "\u{00A0}", with: " ")
 }
 
 private func testHTTPResponse(

@@ -1,5 +1,17 @@
 import Foundation
 
+private final class RedirectRejectingSessionDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        completionHandler(nil)
+    }
+}
+
 struct CodexAPIClient: Sendable {
     var codexHome: URL = FileManager.default.homeDirectoryForCurrentUser.appending(path: ".codex")
     var resetCreditsEndpoint: URL = URL(string: "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits")!
@@ -7,8 +19,23 @@ struct CodexAPIClient: Sendable {
     var timeoutSeconds: TimeInterval = 20
     var trustsEndpoint: @Sendable (URL) -> Bool = CodexAPIClient.isTrustedEndpoint
     var perform: @Sendable (URLRequest) async throws -> (Data, URLResponse) = {
-        try await URLSession.shared.data(for: $0)
+        try await CodexAPIClient.secureSession.data(for: $0)
     }
+
+    private static let secureSession: URLSession = {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpCookieStorage = nil
+        configuration.httpCookieAcceptPolicy = .never
+        configuration.httpShouldSetCookies = false
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.urlCredentialStorage = nil
+        return URLSession(
+            configuration: configuration,
+            delegate: RedirectRejectingSessionDelegate(),
+            delegateQueue: nil
+        )
+    }()
 
     func fetchResetCredits() async throws -> ResetCreditsResponse {
         try await fetchResetCredits(context: loadAuthContext())
@@ -32,14 +59,18 @@ struct CodexAPIClient: Sendable {
 
     func loadAuthContext() throws -> CodexAuthContext {
         let auth = try loadAuth()
+        let accessToken = auth.tokens.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !accessToken.isEmpty else {
+            throw CodexAPIError.invalidAuth(resolvedCodexHome().appending(path: "auth.json").path)
+        }
         let idTokenPayload = jwtPayload(from: auth.tokens.idToken)
         let idTokenAuth = idTokenPayload?["https://api.openai.com/auth"] as? [String: Any]
-        let accessTokenAccountId = accountId(from: auth.tokens.accessToken, fallback: auth.tokens.accountId)
+        let accessTokenAccountId = accountId(from: accessToken, fallback: auth.tokens.accountId)
         let idTokenAccountId = idTokenAuth?["chatgpt_account_id"] as? String
         let resolvedAccountId = idTokenAccountId ?? accessTokenAccountId
 
         return CodexAuthContext(
-            accessToken: auth.tokens.accessToken,
+            accessToken: accessToken,
             accountId: resolvedAccountId,
             identity: CodexAccountIdentity(
                 accountId: resolvedAccountId,
@@ -70,6 +101,11 @@ struct CodexAPIClient: Sendable {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw CodexAPIError.invalidResponse
         }
+        guard let responseURL = httpResponse.url,
+              trustsEndpoint(responseURL)
+        else {
+            throw CodexAPIError.untrustedEndpoint
+        }
         guard (200..<300).contains(httpResponse.statusCode) else {
             if httpResponse.statusCode == 429 {
                 throw CodexAPIError.rateLimited(httpResponse.value(forHTTPHeaderField: "Retry-After"))
@@ -86,7 +122,12 @@ struct CodexAPIClient: Sendable {
 
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
-        return try decoder.decode(Response.self, from: data)
+        let decoded = try decoder.decode(Response.self, from: data)
+        if let semanticResponse = decoded as? CodexSemanticallyValidResponse,
+           !semanticResponse.hasRecognizedPayload {
+            throw CodexAPIError.emptyResponse
+        }
+        return decoded
     }
 
     static func isTrustedEndpoint(_ endpoint: URL) -> Bool {

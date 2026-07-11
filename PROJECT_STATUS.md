@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-07-02
+Last updated: 2026-07-11
 
 ## Summary
 
@@ -17,24 +17,24 @@ https://github.com/jordan-edai/codex-reset-watcher
 Current release:
 
 ```text
-v0.3.8
+v0.4.0
 ```
 
 Latest tracked release state:
 
 ```text
-v0.3.8 default desktop window sizing fix
+v0.4.0 reliability, state-honesty, and release hardening pass
 ```
 
 Latest local release branch:
 
 ```text
-codex/main-window-10-percent-larger
+codex/v0.4.0-product-reliability-pass
 ```
 
-The v0.3.8 default desktop window sizing fix keeps the v0.3.7 layout but opens
-the main window roughly 10% larger by default and expands restored undersized
-macOS frames so the nudge/footer area is not clipped.
+The v0.4.0 pass preserves the v0.3.8 layout while making live, partial, failed,
+signed-out, and cached states explicit. It also hardens account-switch handling,
+network response validation, numeric/date decoding, and release packaging.
 
 ## What Is Shipped
 
@@ -87,12 +87,17 @@ macOS frames so the nudge/footer area is not clipped.
 - `v0.3.8`: opens the desktop window roughly 10% larger by default, enforces a
   roomier minimum for restored windows, and adds a regression test for the
   window-size floor.
+- `v0.4.0`: makes unknown and partial live states explicit, prevents mixed
+  account snapshots during login changes, keeps cached advice neutral, uses
+  server reset counts honestly, bounds hostile response values, rejects unsafe
+  redirects and semantically empty payloads, and expands release/secret-scan
+  verification.
 
 ## Current GitHub State
 
 - Repo is public.
 - Repo description: `Local-first macOS menu bar app for Codex usage limits and reset credits.`
-- Latest release is `v0.3.8`.
+- Latest release is `v0.4.0`.
 - `v0.2.0` release asset cleanup was completed; the duplicate generic
   `Codex.Reset.Watcher.zip` was removed and the versioned zip was kept.
 - v0.3.4 audit fixes restored per-snapshot menu navigation, distinguish
@@ -120,6 +125,9 @@ macOS frames so the nudge/footer area is not clipped.
 - Release `v0.3.8` fixes the remaining desktop first-open sizing issue by
   growing the default/minimum window so ordinary content is not cut off at the
   bottom.
+- Release `v0.4.0` hardens state presentation, refresh/account race handling,
+  response trust/validation, input bounds, nudge logic, snapshot privacy, and
+  universal release verification.
 - PR #1 shipped usage limits and reset nudges.
 - PR #2 shipped the weekly menu bar title.
 - PR #4 fixed the visible menu bar label and versioned release upload path.
@@ -259,7 +267,7 @@ unless the user explicitly asks.
 
 ## Latest Local Verification
 
-The `v0.3.5` branch was locally verified on 2026-06-30 with:
+The `v0.4.0` release candidate was locally verified on 2026-07-11 with:
 
 ```bash
 swift test --scratch-path /tmp/codex-reset-watcher-test --jobs 1
@@ -269,13 +277,20 @@ CONFIGURATION=release ./script/build_and_run.sh --verify
 plutil -extract CFBundleShortVersionString raw -o - \
   "dist/Codex Reset Watcher.app/Contents/Info.plist"
 codesign --verify --deep --strict "dist/Codex Reset Watcher.app"
-unzip -t "dist/Codex.Reset.Watcher.v0.3.5.zip"
+unzip -t "dist/Codex.Reset.Watcher.v0.4.0.zip"
 strings "dist/Codex Reset Watcher.app/Contents/MacOS/CodexResetWatcher" | rg \
   "youreverydayai|everydayai|acct_|user_|credit-full|eyJ|access_token|refresh_token|id_token|auth\\.json|rate_limit"
 ```
 
 The final string scan returned no matches.
 
-Computer Use QA checked the packaged app's desktop active view, cached snapshot
-view, stale cleanup controls, real menu bar title, dropdown Week/5h toggle, and
-cached snapshot row navigation.
+The SwiftPM suite passed 105 tests. The release workflow also checks the tag
+version, universal arm64/x86_64 packaging, signature, zip integrity, and
+sensitive-string scan before publishing an asset.
+
+The packaged app opened successfully during local smoke QA. Screenshot checks
+confirmed the active desktop view, current limits, reset-credit rows, cached
+snapshot sidebar, and the real menu bar title render from the release bundle.
+Interactive Computer Use was unavailable in this run, so cached-row navigation
+and dropdown toggles remain covered by unit tests and the prior manual QA record
+rather than being claimed as freshly re-clicked here.

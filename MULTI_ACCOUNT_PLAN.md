@@ -1,6 +1,6 @@
 # Multi-Account Snapshot Design
 
-Shipped in `v0.3.0`.
+Introduced in `v0.3.0`; reliability hardening shipped in `v0.4.0`.
 
 ## Direction
 
@@ -23,7 +23,7 @@ Use the safest available label, in this order:
 1. Email from the live usage response.
 2. Email from the local Codex `id_token`.
 3. Name from the local Codex `id_token`.
-4. A short account-id fallback, such as `Codex account 123abc`.
+4. The generic label `Codex account`.
 
 Do not show full account email in the menu bar title. It is too easy to leak in
 screenshots. Full labels can appear inside the dropdown or main window with
@@ -107,6 +107,9 @@ Required tests:
 - corrupt or old schema files
 - endpoint failures that preserve cached snapshots without rewriting them as
   fresh empty active data
+- semantic empty/HTML success responses and unsafe final redirect URLs
+- empty auth-token rejection
+- unknown reset counts and partial/error presentation states
 
 Manual QA boundary:
 

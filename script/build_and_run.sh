@@ -5,7 +5,7 @@ MODE="${1:-run}"
 PRODUCT_NAME="CodexResetWatcher"
 APP_NAME="Codex Reset Watcher"
 BUNDLE_ID="com.jordanedai.codex-reset-watcher"
-VERSION="0.3.8"
+VERSION="0.4.0"
 BUILD_NUMBER="1"
 MIN_SYSTEM_VERSION="14.0"
 CONFIGURATION="${CONFIGURATION:-debug}"
@@ -26,8 +26,16 @@ HEADER_ARTWORK="$ROOT_DIR/Assets/UsageHeader.png"
 pkill -x "$PRODUCT_NAME" >/dev/null 2>&1 || true
 
 if [[ "$CONFIGURATION" == "release" ]]; then
-  swift build --scratch-path "$SCRATCH_PATH" --jobs "$SWIFT_BUILD_JOBS" -c release
-  BUILD_BINARY="$SCRATCH_PATH/release/$PRODUCT_NAME"
+  RELEASE_BUILD_ARGS=(
+    --scratch-path "$SCRATCH_PATH"
+    --jobs "$SWIFT_BUILD_JOBS"
+    -c release
+    --arch arm64
+    --arch x86_64
+  )
+  swift build "${RELEASE_BUILD_ARGS[@]}"
+  BUILD_BIN_PATH="$(swift build "${RELEASE_BUILD_ARGS[@]}" --show-bin-path)"
+  BUILD_BINARY="$BUILD_BIN_PATH/$PRODUCT_NAME"
 else
   swift build --scratch-path "$SCRATCH_PATH" --jobs "$SWIFT_BUILD_JOBS"
   BUILD_BINARY="$SCRATCH_PATH/debug/$PRODUCT_NAME"
@@ -44,6 +52,13 @@ cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
 if [[ "$CONFIGURATION" == "release" ]]; then
   /usr/bin/strip -S -x "$APP_BINARY"
+  RELEASE_ARCHS="$(/usr/bin/lipo -archs "$APP_BINARY")"
+  for REQUIRED_ARCH in arm64 x86_64; do
+    if [[ " $RELEASE_ARCHS " != *" $REQUIRED_ARCH "* ]]; then
+      echo "Release executable is missing $REQUIRED_ARCH: $RELEASE_ARCHS" >&2
+      exit 1
+    fi
+  done
 fi
 if [[ -f "$APP_ICON" ]]; then
   cp "$APP_ICON" "$APP_RESOURCES/AppIcon.icns"

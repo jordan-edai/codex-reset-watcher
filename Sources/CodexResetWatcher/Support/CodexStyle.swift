@@ -37,6 +37,7 @@ enum CodexStyle {
         static let menuDateColumn: CGFloat = 142
         static let menuControlWidth: CGFloat = 150
         static let menuRowMinHeight: CGFloat = 50
+        static let menuDynamicContentMaxHeight: CGFloat = 620
         static let artworkWidth: CGFloat = 88
         static let artworkHeight: CGFloat = 52
         static let compactArtworkWidth: CGFloat = 66
@@ -78,6 +79,8 @@ enum CodexStyle {
     }
 
     enum Typography {
+        static let sidebarTitleSize: CGFloat = 12
+        static let sidebarDetailSize: CGFloat = 11
         static let appTitle = Font.system(size: 23, weight: .bold)
         static let sectionTitle = Font.system(size: 18, weight: .semibold)
         static let cardTitle = Font.system(size: 16, weight: .semibold)
@@ -93,6 +96,8 @@ enum CodexStyle {
         static let menuRowMeta = Font.system(size: 12, weight: .medium)
         static let menuMetric = Font.system(size: 15, weight: .semibold)
         static let menuDate = Font.system(size: 14, weight: .semibold)
+        static let sidebarTitle = Font.system(size: sidebarTitleSize, weight: .medium)
+        static let sidebarDetail = Font.system(size: sidebarDetailSize, weight: .medium)
     }
 }
 

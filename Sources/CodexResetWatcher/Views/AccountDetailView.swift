@@ -21,17 +21,18 @@ struct AccountDetailView: View {
                 errorBanner(message)
             }
 
-            if detail.usageWindows.isEmpty, detail.credits.isEmpty, detail.isRefreshing {
+            if detail.usageWindows.isEmpty, detail.credits.isEmpty, detail.liveState == .loading {
                 loadingState
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: CodexStyle.Spacing.desktopStack) {
+                        NudgeCardView(nudge: detail.nudge)
+
                         if !detail.usageWindows.isEmpty {
                             usageSection
                         }
 
                         resetSection
-                        NudgeCardView(nudge: detail.nudge)
                     }
                     .padding(.vertical, 2)
                 }
@@ -73,7 +74,7 @@ struct AccountDetailView: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 3) {
-                Text("\(detail.availableCount)")
+                Text(resetCountValue)
                     .font(CodexStyle.Typography.largeMetric)
                     .monospacedDigit()
                 Text(resetCountLabel)
@@ -87,8 +88,26 @@ struct AccountDetailView: View {
     }
 
     private var resetCountLabel: String {
-        let plural = detail.availableCount == 1 ? "reset" : "resets"
-        return detail.isCached ? "\(plural) last seen" : "\(plural) banked"
+        switch detail.resetCountState {
+        case .loading:
+            return "checking reset credits"
+        case .unavailable:
+            return "reset count unavailable"
+        case let .known(count):
+            let noun = count == 1 ? "reset credit" : "reset credits"
+            return detail.isCached ? "\(noun) last seen" : "\(noun) available"
+        }
+    }
+
+    private var resetCountValue: String {
+        switch detail.resetCountState {
+        case .loading:
+            return "..."
+        case .unavailable:
+            return "-"
+        case let .known(count):
+            return "\(count)"
+        }
     }
 
     private var snapshotBanner: some View {
@@ -103,7 +122,7 @@ struct AccountDetailView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(detail.statusTitle)
                     .font(CodexStyle.Typography.cardTitle)
-                Text(detail.isStale ? "The displayed reset window has passed. Sign into this Codex account to refresh it." : "This is a local snapshot. Sign into this Codex account to refresh it.")
+                Text(detail.isStale ? "This saved reset time has passed. Refresh checks the account currently signed in to Codex." : "This saved snapshot does not update live. Refresh checks the account currently signed in to Codex.")
                     .font(.subheadline)
                     .foregroundStyle(CodexPalette.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -119,7 +138,7 @@ struct AccountDetailView: View {
 
     private var usageSection: some View {
         VStack(alignment: .leading, spacing: CodexStyle.Spacing.desktopStack) {
-            CodexSectionHeader(title: "Usage windows", detail: detail.isCached ? "Cached last-seen limits" : "Live limits")
+            CodexSectionHeader(title: "Current limits", detail: detail.isCached ? "Last saved values" : "Live from Codex")
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 245), spacing: CodexStyle.Spacing.desktopStack)], spacing: CodexStyle.Spacing.desktopStack) {
                 ForEach(detail.usageWindows) { window in
@@ -132,8 +151,8 @@ struct AccountDetailView: View {
     private var resetSection: some View {
         VStack(alignment: .leading, spacing: CodexStyle.Spacing.desktopStack) {
             CodexSectionHeader(
-                title: "Reset expiry",
-                detail: "\(detail.availableCount) \(detail.isCached ? "last seen" : "available")"
+                title: "Reset credits",
+                detail: resetSectionDetail
             )
 
             if !hasResetRows {
@@ -156,16 +175,30 @@ struct AccountDetailView: View {
     }
 
     private var missingCreditCount: Int {
-        max(0, detail.availableCount - detail.credits.count)
+        guard let count = detail.resetCountState.count else {
+            return 0
+        }
+        return max(0, count - detail.credits.count)
+    }
+
+    private var resetSectionDetail: String {
+        switch detail.resetCountState {
+        case .loading:
+            return "Checking availability"
+        case .unavailable:
+            return "Count unavailable"
+        case let .known(count):
+            return "\(count) \(detail.isCached ? "last seen" : "available")"
+        }
     }
 
     private var loadingState: some View {
         VStack(spacing: 10) {
             ProgressView()
                 .controlSize(.large)
-            Text("Checking the Codex fuel gauge...")
+            Text("Checking Codex usage...")
                 .font(CodexStyle.Typography.sectionTitle)
-            Text("Fetching 5h, weekly, and reset-stash windows.")
+            Text("Loading current limits and reset credits.")
                 .font(.body)
                 .foregroundStyle(CodexPalette.secondaryText)
         }
@@ -180,44 +213,51 @@ struct AccountDetailView: View {
 
             Spacer()
 
-            CodexSegmentedPicker(selection: appearanceModeSelection) {
+            CodexSegmentedPicker("Appearance", selection: appearanceModeSelection) {
                 ForEach(CodexAppearanceMode.allCases) { mode in
                     Text(mode.title).tag(mode.rawValue)
                 }
             }
             .frame(width: 184)
 
-            if detail.canForget, let snapshotID = detail.snapshotID {
-                Button {
-                    onForget(snapshotID)
-                } label: {
-                    Label(detail.isStale ? "Forget stale" : "Forget snapshot", systemImage: "trash")
-                }
-            }
+            if hasSnapshotActions {
+                Menu {
+                    if detail.canForget, let snapshotID = detail.snapshotID {
+                        Button {
+                            onForget(snapshotID)
+                        } label: {
+                            Label(detail.isStale ? "Forget stale snapshot" : "Forget this snapshot", systemImage: "trash")
+                        }
+                    }
 
-            if detail.staleSnapshotCount > 0 {
-                Button {
-                    onClearStale()
-                } label: {
-                    Label("Clear stale", systemImage: "clock.badge.exclamationmark")
-                }
-            }
+                    if detail.staleSnapshotCount > 0 {
+                        Button {
+                            onClearStale()
+                        } label: {
+                            Label("Clear stale snapshots", systemImage: "clock.badge.exclamationmark")
+                        }
+                    }
 
-            if detail.isCached, cachedAccountCount > 0 {
-                Button {
-                    onClearCached()
+                    if cachedAccountCount > 0 {
+                        Button {
+                            onClearCached()
+                        } label: {
+                            Label("Clear all cached snapshots", systemImage: "xmark.circle")
+                        }
+                    }
                 } label: {
-                    Label("Clear cached", systemImage: "xmark.circle")
+                    Label("Snapshots", systemImage: "archivebox")
                 }
             }
 
             Button {
                 onRefresh()
             } label: {
-                Label(detail.isRefreshing ? "Refreshing" : "Refresh", systemImage: "arrow.clockwise")
+                Label(detail.isRefreshing ? "Refreshing" : detail.refreshActionTitle, systemImage: "arrow.clockwise")
             }
             .disabled(!detail.canRefresh || detail.isRefreshing)
         }
+        .controlSize(.small)
     }
 
     private var footerStatus: String {
@@ -225,6 +265,10 @@ struct AccountDetailView: View {
             return "Cached snapshot"
         }
         return "Updates every 5 min"
+    }
+
+    private var hasSnapshotActions: Bool {
+        detail.canForget || detail.staleSnapshotCount > 0 || cachedAccountCount > 0
     }
 
     private var appearanceModeSelection: Binding<String> {
@@ -254,22 +298,31 @@ struct AccountDetailView: View {
 
     private var emptyStateTitle: String {
         if detail.isCached {
-            return "No reset expiries saved."
+            return "No reset-credit dates saved."
+        }
+        if detail.resetCountState == .loading {
+            return "Checking reset credits..."
+        }
+        if detail.resetCountState == .unavailable {
+            return "Reset-credit details are unavailable."
         }
         if !detail.errorMessages.isEmpty {
-            return "Reset expiries unavailable."
+            return "Reset-credit dates are unavailable."
         }
-        return "No banked resets right now."
+        return "No reset credits available."
     }
 
     private var emptyStateDetail: String {
         if detail.isCached {
-            return "This snapshot did not include reset-credit expiry rows."
+            return "This snapshot did not include expiry dates for its reset credits."
+        }
+        if detail.liveState == .signedOut {
+            return "Sign in to Codex, then refresh."
         }
         if !detail.errorMessages.isEmpty {
-            return "Reset stash did not refresh. Try again in a bit."
+            return "Codex did not return reset-credit details. Try Refresh."
         }
-        return "Codex answered, but the reset stash is empty."
+        return "Codex reports no available reset credits."
     }
 
     private func errorBanner(_ message: String) -> some View {
@@ -420,7 +473,6 @@ private struct NudgeCardView: View {
                 Text(nudge.message)
                     .font(CodexStyle.Typography.body)
                     .foregroundStyle(CodexPalette.secondaryText)
-                    .lineLimit(1)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }

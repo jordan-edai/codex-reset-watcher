@@ -25,7 +25,7 @@ final class UsageNudgeTests: XCTestCase {
         )
 
         XCTAssertEqual(nudge.tier, .hold)
-        XCTAssertEqual(nudge.title, "Hold that reset")
+        XCTAssertEqual(nudge.title, "Keep your reset credit")
     }
 
     @MainActor
@@ -39,7 +39,7 @@ final class UsageNudgeTests: XCTestCase {
         )
 
         XCTAssertEqual(nudge.tier, .waitFiveHour)
-        XCTAssertEqual(nudge.title, "Let the 5h tank refill")
+        XCTAssertEqual(nudge.title, "Wait for the 5-hour reset")
     }
 
     @MainActor
@@ -67,8 +67,8 @@ final class UsageNudgeTests: XCTestCase {
         )
 
         XCTAssertEqual(nudge.tier, .deadline)
-        XCTAssertEqual(nudge.title, "Deadline override")
-        XCTAssertTrue(nudge.message.contains("Big deadline?"))
+        XCTAssertEqual(nudge.title, "Use a reset only for a deadline")
+        XCTAssertTrue(nudge.message.contains("real deadline"))
     }
 
     @MainActor
@@ -82,8 +82,8 @@ final class UsageNudgeTests: XCTestCase {
         )
 
         XCTAssertEqual(nudge.tier, .deadline)
-        XCTAssertEqual(nudge.title, "Deadline call")
-        XCTAssertTrue(nudge.message.contains("If this is deadline work"))
+        XCTAssertEqual(nudge.title, "Use a reset only for a deadline")
+        XCTAssertTrue(nudge.message.contains("real deadline"))
     }
 
     @MainActor
@@ -97,7 +97,7 @@ final class UsageNudgeTests: XCTestCase {
         )
 
         XCTAssertEqual(nudge.tier, .waitFiveHour)
-        XCTAssertEqual(nudge.title, "Let the 5h tank refill")
+        XCTAssertEqual(nudge.title, "Wait for the 5-hour reset")
     }
 
     @MainActor
@@ -111,7 +111,37 @@ final class UsageNudgeTests: XCTestCase {
         )
 
         XCTAssertEqual(nudge.tier, .noResets)
-        XCTAssertEqual(nudge.title, "No reset parachute")
+        XCTAssertEqual(nudge.title, "5-hour capacity is low")
+    }
+
+    @MainActor
+    func testLowFiveHourWithNoResetAndShortWaitSaysWaitForRefill() {
+        let nudge = UsageNudge.make(
+            windows: [
+                window(kind: .fiveHour, remaining: 5, resetAfterSeconds: 60 * 60),
+                window(kind: .weekly, remaining: 80, resetAfterSeconds: 5 * 86_400)
+            ],
+            resetCount: 0
+        )
+
+        XCTAssertEqual(nudge.tier, .waitFiveHour)
+        XCTAssertEqual(nudge.title, "Wait for the 5-hour reset")
+        XCTAssertTrue(nudge.message.contains("no reset credit"))
+    }
+
+    @MainActor
+    func testGlobalBlockedStateDoesNotRequireAWindowToBeMarkedBlocked() {
+        let nudge = UsageNudge.make(
+            windows: [
+                window(kind: .fiveHour, remaining: 80, resetAfterSeconds: 4 * 3_600),
+                window(kind: .weekly, remaining: 80, resetAfterSeconds: 24 * 60 * 60)
+            ],
+            resetCount: 1,
+            globallyBlocked: true
+        )
+
+        XCTAssertEqual(nudge.tier, .blocked)
+        XCTAssertEqual(nudge.title, "Blocked now")
     }
 
     @MainActor
@@ -125,7 +155,7 @@ final class UsageNudgeTests: XCTestCase {
         )
 
         XCTAssertEqual(nudge.tier, .steady)
-        XCTAssertEqual(nudge.title, "Cruise mode")
+        XCTAssertEqual(nudge.title, "Keep working")
     }
 
     @MainActor
@@ -150,12 +180,12 @@ final class UsageNudgeTests: XCTestCase {
             ],
             resetCount: 1,
             resetUrgencies: [
-                ResetExpiryUrgency(level: .urgent, badge: "Ends today", hint: "Use it soon or let it go")
+                ResetExpiryUrgency(level: .urgent, badge: "Within 24 hours", hint: "Use it soon if useful work needs it")
             ]
         )
 
         XCTAssertEqual(nudge.tier, .expiringReset)
-        XCTAssertEqual(nudge.title, "Use it or lose it")
+        XCTAssertEqual(nudge.title, "Reset credit expires soon")
     }
 
     @MainActor
@@ -167,13 +197,13 @@ final class UsageNudgeTests: XCTestCase {
             ],
             resetCount: 1,
             resetUrgencies: [
-                ResetExpiryUrgency(level: .urgent, badge: "Ends today", hint: "Use it soon or let it go")
+                ResetExpiryUrgency(level: .urgent, badge: "Within 24 hours", hint: "Use it soon if useful work needs it")
             ]
         )
 
         XCTAssertEqual(nudge.tier, .blocked)
         XCTAssertEqual(nudge.title, "Blocked now")
-        XCTAssertEqual(nudge.detail, "1 reset banked")
+        XCTAssertEqual(nudge.detail, "1 reset credit available")
     }
 
     @MainActor
@@ -187,7 +217,7 @@ final class UsageNudgeTests: XCTestCase {
         )
 
         XCTAssertEqual(nudge.tier, .blocked)
-        XCTAssertEqual(nudge.title, "Blocked, wait it out")
+        XCTAssertEqual(nudge.title, "Wait for the limit to reset")
         XCTAssertEqual(nudge.detail, "5h limit resets in 45m")
     }
 
@@ -201,7 +231,7 @@ final class UsageNudgeTests: XCTestCase {
         )
 
         XCTAssertEqual(nudge.tier, .useIfBlocked)
-        XCTAssertEqual(nudge.title, "Green light, with brakes")
+        XCTAssertEqual(nudge.title, "Use a reset only if blocked")
     }
 
     @MainActor
@@ -214,7 +244,7 @@ final class UsageNudgeTests: XCTestCase {
         )
 
         XCTAssertEqual(nudge.tier, .hold)
-        XCTAssertEqual(nudge.title, "Pocket the reset")
+        XCTAssertEqual(nudge.title, "Keep your reset credit")
     }
 
     @MainActor
@@ -222,7 +252,7 @@ final class UsageNudgeTests: XCTestCase {
         let nudge = UsageNudge.make(windows: [], resetCount: 1)
 
         XCTAssertEqual(nudge.tier, .unavailable)
-        XCTAssertEqual(nudge.title, "Waiting on the meters")
+        XCTAssertEqual(nudge.title, "Usage unavailable")
     }
 
     @MainActor
@@ -274,13 +304,103 @@ final class UsageNudgeTests: XCTestCase {
         )
 
         XCTAssertEqual(nudge.tier, .noResets)
-        XCTAssertEqual(nudge.title, "No reset parachute")
+        XCTAssertEqual(nudge.title, "No reset credits available")
+    }
+
+    @MainActor
+    func testUnknownResetCountDoesNotPretendThereAreZeroCredits() {
+        let nudge = UsageNudge.make(
+            windows: [
+                window(kind: .weekly, remaining: 10, resetAfterSeconds: 5 * 86_400)
+            ],
+            resetCount: nil
+        )
+
+        XCTAssertEqual(nudge.tier, .unavailable)
+        XCTAssertEqual(nudge.title, "Reset credits unavailable")
+        XCTAssertFalse(nudge.message.localizedCaseInsensitiveContains("no reset"))
+    }
+
+    @MainActor
+    func testGenericLimitsAreDifferentFromMissingUsage() {
+        let generic = UsageNudge.make(
+            windows: [window(kind: .generic, remaining: 60, resetAfterSeconds: 3_600)],
+            resetCount: 1
+        )
+        let missing = UsageNudge.make(windows: [], resetCount: 1)
+
+        XCTAssertEqual(generic.title, "Weekly limit not identified")
+        XCTAssertEqual(missing.title, "Usage unavailable")
+    }
+
+    @MainActor
+    func testResetAtDrivesWeeklyTimingWhenDurationIsMissing() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let nudge = UsageNudge.make(
+            windows: [
+                window(
+                    kind: .weekly,
+                    remaining: 40,
+                    resetAfterSeconds: nil,
+                    resetAt: now.addingTimeInterval(2 * 86_400).timeIntervalSince1970
+                )
+            ],
+            resetCount: 1,
+            now: now
+        )
+
+        XCTAssertEqual(nudge.tier, .hold)
+        XCTAssertEqual(nudge.title, "Keep your reset credit")
+    }
+
+    @MainActor
+    func testLowFiveHourAndModerateWeeklyCapacityIsADeadlineDecisionWhenResetIsFar() {
+        let nudge = UsageNudge.make(
+            windows: [
+                window(kind: .fiveHour, remaining: 5, resetAfterSeconds: 4 * 3_600),
+                window(kind: .weekly, remaining: 40, resetAfterSeconds: 5 * 86_400)
+            ],
+            resetCount: 1
+        )
+
+        XCTAssertEqual(nudge.tier, .deadline)
+        XCTAssertEqual(nudge.title, "Use a reset only for a deadline")
+    }
+
+    @MainActor
+    func testLowFiveHourAndModerateWeeklyCapacityWaitsWhenResetIsClose() {
+        let nudge = UsageNudge.make(
+            windows: [
+                window(kind: .fiveHour, remaining: 5, resetAfterSeconds: 60 * 60),
+                window(kind: .weekly, remaining: 40, resetAfterSeconds: 5 * 86_400)
+            ],
+            resetCount: 1
+        )
+
+        XCTAssertEqual(nudge.tier, .waitFiveHour)
+        XCTAssertEqual(nudge.title, "Wait for the 5-hour reset")
+    }
+
+    @MainActor
+    func testBlockedLimitWithUnknownResetCountAvoidsSpendOrWaitClaim() {
+        let nudge = UsageNudge.make(
+            windows: [
+                window(kind: .fiveHour, remaining: 20, resetAfterSeconds: 3_600, limitReached: true)
+            ],
+            resetCount: nil
+        )
+
+        XCTAssertEqual(nudge.tier, .blocked)
+        XCTAssertEqual(nudge.title, "Blocked now")
+        XCTAssertEqual(nudge.detail, "5h limit resets in 1h")
+        XCTAssertTrue(nudge.message.contains("could not be checked"))
     }
 
     private func window(
         kind: UsageLimitDisplay.Kind,
         remaining: Int,
         resetAfterSeconds: Int?,
+        resetAt: TimeInterval? = nil,
         limitReached: Bool = false
     ) -> UsageLimitDisplay {
         let seconds: Int
@@ -310,7 +430,7 @@ final class UsageNudgeTests: XCTestCase {
                 usedPercent: 100 - remaining,
                 limitWindowSeconds: seconds,
                 resetAfterSeconds: resetAfterSeconds,
-                resetAt: nil
+                resetAt: resetAt
             ),
             limitReached: limitReached
         )

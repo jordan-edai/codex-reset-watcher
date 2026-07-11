@@ -18,7 +18,7 @@ jobs:
         run: swift --version
 
       - name: Build release
-        run: swift build -c release --jobs 1
+        run: swift build -c release --jobs 1 --arch arm64 --arch x86_64
 
       - name: Test
         run: swift test --jobs 1
@@ -28,11 +28,33 @@ jobs:
 
       - name: Verify app bundle
         run: |
+          set -euo pipefail
+
           test -d "dist/Codex Reset Watcher.app"
           test -f "dist/Codex Reset Watcher.app/Contents/Resources/AppIcon.icns"
           test -f "dist/Codex Reset Watcher.app/Contents/Resources/UsageHeader.png"
           plutil -lint "dist/Codex Reset Watcher.app/Contents/Info.plist"
           codesign --verify --deep --strict --verbose=2 "dist/Codex Reset Watcher.app"
+          APP_BINARY="dist/Codex Reset Watcher.app/Contents/MacOS/CodexResetWatcher"
+          ARCHS="$(lipo -archs "$APP_BINARY")"
+          for REQUIRED_ARCH in arm64 x86_64; do
+            if [[ " $ARCHS " != *" $REQUIRED_ARCH "* ]]; then
+              echo "Packaged executable is missing $REQUIRED_ARCH: $ARCHS" >&2
+              exit 1
+            fi
+          done
+
+          SECRET_PATTERN='([[:alnum:]._%+-]+@[[:alnum:].-]+\.[[:alpha:]]{2,})|(acct_[[:alnum:]_-]{8,})|(eyJ[[:alnum:]_-]{10,}\.[[:alnum:]_-]{10,}\.[[:alnum:]_-]{10,})|(sk-(proj-)?[[:alnum:]_-]{16,})|(Bearer[[:space:]]+[[:alnum:]_.-]{16,})|(/Users/[^[:space:]]+/\.codex/auth\.json)|("(access_token|id_token|refresh_token)"[[:space:]]*:)|(\{"(available_count|reset_credits|plan_type|rate_limit)"[[:space:]]*:)'
+          STRINGS_OUTPUT="$(mktemp)"
+          trap 'rm -f "$STRINGS_OUTPUT"' EXIT
+          strings -a "$APP_BINARY" > "$STRINGS_OUTPUT"
+          if grep -En "$SECRET_PATTERN" "$STRINGS_OUTPUT"; then
+            echo "Packaged executable contains a possible secret or raw private payload" >&2
+            exit 1
+          fi
+          rm -f "$STRINGS_OUTPUT"
+          trap - EXIT
+
           zipinfo -1 "dist/Codex Reset Watcher.zip" | grep -q "Codex Reset Watcher.app/Contents/MacOS/CodexResetWatcher"
           VERSION="$(plutil -extract CFBundleShortVersionString raw -o - "dist/Codex Reset Watcher.app/Contents/Info.plist")"
           zipinfo -1 "dist/Codex.Reset.Watcher.v${VERSION}.zip" | grep -q "Codex Reset Watcher.app/Contents/MacOS/CodexResetWatcher"

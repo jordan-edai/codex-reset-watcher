@@ -32,59 +32,102 @@ struct MenuBarStatusView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 9) {
             header
+
+            Divider()
+
+            boundedDynamicContent
+
+            Divider()
+
+            footer
+        }
+        .padding(CodexStyle.Spacing.menuPadding)
+        .frame(width: CodexStyle.Size.menuWidth)
+        .background(CodexPalette.menuPopoverBackground)
+    }
+
+    private var boundedDynamicContent: some View {
+        ViewThatFits(in: .vertical) {
+            dynamicContent
+                .fixedSize(horizontal: false, vertical: true)
+
+            ScrollView {
+                dynamicContent
+            }
+            .scrollIndicators(.visible)
+            .scrollBounceBehavior(.basedOnSize)
+        }
+        .frame(maxHeight: CodexStyle.Size.menuDynamicContentMaxHeight)
+    }
+
+    private var dynamicContent: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            nudgeRow
 
             ForEach(store.errorMessages, id: \.self) { message in
                 errorRow(message)
             }
 
-            VStack(alignment: .leading, spacing: 7) {
+            currentLimitsSection
+            resetRows
+
+            Divider()
+
+            displaySettingsSection
+
+            if !store.cachedSnapshots.isEmpty {
+                Divider()
+                cachedSnapshotsSection
+            }
+        }
+    }
+
+    private var footer: some View {
+        HStack {
+            Button {
+                Task {
+                    await store.refresh()
+                }
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
+            }
+            .disabled(store.isRefreshing)
+
+            Spacer()
+
+            Button("Open") {
+                showMainWindow()
+            }
+
+            Button("Quit") {
+                NSApp.terminate(nil)
+            }
+        }
+        .controlSize(.small)
+    }
+
+    private var currentLimitsSection: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            menuSectionHeader("Current limits", detail: currentLimitsDetail)
+
+            if store.usageWindows.isEmpty {
+                emptyLimitsRow
+            } else {
                 ForEach(store.usageWindows) { window in
                     limitRow(window)
                 }
             }
+        }
+    }
 
-            nudgeRow
-
+    private var displaySettingsSection: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            menuSectionHeader("Display settings")
             menuBarDisplayRow
             appearanceRow
-
-            resetRows
-
-            if !store.cachedSnapshots.isEmpty {
-                Divider()
-
-                cachedSnapshotsSection
-            }
-
-            Divider()
-
-            HStack {
-                Button {
-                    Task {
-                        await store.refresh()
-                    }
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-                .disabled(store.isRefreshing)
-
-                Spacer()
-
-                Button("Open") {
-                    showMainWindow()
-                }
-
-                Button("Quit") {
-                    NSApp.terminate(nil)
-                }
-            }
-            .controlSize(.small)
         }
-        .padding(CodexStyle.Spacing.menuPadding)
-        .frame(width: CodexStyle.Size.menuWidth)
-        .background(CodexPalette.menuPopoverBackground)
     }
 
     private var header: some View {
@@ -109,11 +152,11 @@ struct MenuBarStatusView: View {
             Spacer(minLength: 10)
 
             VStack(alignment: .trailing, spacing: 2) {
-                Text("\(store.availableCount)")
+                Text(menuResetCountValue)
                     .font(.system(size: 27, weight: .semibold))
                     .monospacedDigit()
                     .foregroundStyle(CodexPalette.primaryText)
-                Text(store.availableCount == 1 ? "reset banked" : "resets banked")
+                Text(menuResetCountLabel)
                     .font(CodexStyle.Typography.menuRowMeta)
                     .foregroundStyle(CodexPalette.secondaryText)
                     .lineLimit(1)
@@ -143,7 +186,7 @@ struct MenuBarStatusView: View {
 
             Spacer()
 
-            CodexSegmentedPicker(selection: menuBarMetricSelection) {
+            CodexSegmentedPicker("Menu bar limit", selection: menuBarMetricSelection) {
                 ForEach(MenuBarMetric.allCases) { metric in
                     Text(metric.pickerTitle)
                         .tag(metric.rawValue)
@@ -172,7 +215,7 @@ struct MenuBarStatusView: View {
 
             Spacer()
 
-            CodexSegmentedPicker(selection: appearanceModeSelection) {
+            CodexSegmentedPicker("Appearance", selection: appearanceModeSelection) {
                 ForEach(CodexAppearanceMode.allCases) { mode in
                     Text(mode.title).tag(mode.rawValue)
                 }
@@ -222,16 +265,7 @@ struct MenuBarStatusView: View {
 
     private var resetRows: some View {
         VStack(alignment: .leading, spacing: 7) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Reset credits")
-                    .font(CodexStyle.Typography.menuRowMeta.weight(.semibold))
-                    .foregroundStyle(CodexPalette.secondaryText)
-                Spacer()
-                Text("\(store.availableCount) available")
-                    .font(CodexStyle.Typography.menuRowMeta)
-                    .foregroundStyle(CodexPalette.secondaryText)
-            }
-            .padding(.horizontal, 2)
+            menuSectionHeader("Reset credits", detail: resetCountDetail)
 
             ForEach(visibleResetCredits, id: \.element.id) { index, credit in
                 resetExpiryRow(index: index, credit: credit)
@@ -256,12 +290,24 @@ struct MenuBarStatusView: View {
         let tone = CodexTone.resetUrgency(urgency)
 
         return HStack(alignment: .center, spacing: CodexStyle.Spacing.rowGap) {
-            CodexIconBadge(systemName: "calendar.badge.clock", tone: tone, size: 24, symbolSize: CodexStyle.Icon.menu)
+            CodexIconBadge(systemName: resetIconName(for: urgency), tone: tone, size: 24, symbolSize: CodexStyle.Icon.menu)
                 .frame(width: CodexStyle.Size.menuIconColumn)
 
-            Text("Reset \(index + 1) expires:")
-                .font(CodexStyle.Typography.menuRowTitle)
-                .lineLimit(1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Reset \(index + 1) expires:")
+                    .font(CodexStyle.Typography.menuRowTitle)
+                    .lineLimit(1)
+
+                if let status = urgency.visibleExpiryStatus {
+                    Text(status)
+                        .font(CodexStyle.Typography.menuRowMeta)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(tone.foreground)
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .layoutPriority(1)
 
             Spacer(minLength: 8)
 
@@ -274,7 +320,7 @@ struct MenuBarStatusView: View {
             .multilineTextAlignment(.trailing)
             .frame(width: CodexStyle.Size.menuDateColumn, alignment: .trailing)
         }
-        .codexRow(minHeight: 52)
+        .codexRow(minHeight: urgency.visibleExpiryStatus == nil ? 52 : 58)
     }
 
     private func missingResetExpiryRow(index: Int) -> some View {
@@ -352,13 +398,13 @@ struct MenuBarStatusView: View {
 
     private var hiddenResetCreditDetail: String {
         if nextHiddenExpiry != nil {
-            return "Next hidden expires"
+            return "Next additional expiry"
         }
-        return "Some expiries unavailable"
+        return "Some dates unavailable"
     }
 
     private var totalResetCreditCount: Int {
-        max(store.availableCreditDisplays.count, store.availableCount)
+        max(store.availableCreditDisplays.count, store.resetCountState.count ?? 0)
     }
 
     private var visibleResetRowCount: Int {
@@ -423,7 +469,7 @@ struct MenuBarStatusView: View {
 
                     Text(snapshot.isStale() ? "Stale cached snapshot" : "Cached snapshot")
                         .font(CodexStyle.Typography.menuRowMeta)
-                        .foregroundStyle(snapshot.isStale() ? CodexPalette.warningOrange : CodexPalette.secondaryText)
+                        .foregroundStyle(snapshot.isStale() ? CodexPalette.warningText : CodexPalette.secondaryText)
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -486,24 +532,165 @@ struct MenuBarStatusView: View {
         .codexRow(minHeight: 48)
     }
 
+    private func menuSectionHeader(_ title: String, detail: String? = nil) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(CodexStyle.Typography.menuRowMeta.weight(.semibold))
+                .foregroundStyle(CodexPalette.secondaryText)
+
+            Spacer()
+
+            if let detail {
+                Text(detail)
+                    .font(CodexStyle.Typography.menuRowMeta)
+                    .foregroundStyle(CodexPalette.secondaryText)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, 2)
+    }
+
+    private var emptyLimitsRow: some View {
+        HStack(alignment: .top, spacing: CodexStyle.Spacing.rowGap) {
+            CodexIconBadge(systemName: "gauge.with.dots.needle.0percent", tone: .muted, size: 24, symbolSize: CodexStyle.Icon.menu)
+                .frame(width: CodexStyle.Size.menuIconColumn)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(emptyLimitsTitle)
+                    .font(CodexStyle.Typography.menuRowTitle)
+                    .foregroundStyle(CodexPalette.primaryText)
+                    .lineLimit(1)
+
+                Text(emptyLimitsDetail)
+                    .font(CodexStyle.Typography.menuRowMeta)
+                    .foregroundStyle(CodexPalette.secondaryText)
+                    .lineLimit(2)
+            }
+
+            Spacer()
+        }
+        .codexRow(minHeight: 50)
+    }
+
+    private var emptyLimitsTitle: String {
+        switch store.liveState {
+        case .loading:
+            return "Checking current limits"
+        case .signedOut:
+            return "Sign in to Codex"
+        case .partial, .failed:
+            return "Current limits unavailable"
+        case .live, .cached:
+            return "No current limits shown"
+        }
+    }
+
+    private var emptyLimitsDetail: String {
+        switch store.liveState {
+        case .loading:
+            return "Waiting for Codex to respond."
+        case .signedOut:
+            return "Sign in, then refresh."
+        case .partial, .failed:
+            return "Refresh to try the live check again."
+        case .live, .cached:
+            return "Codex did not return a usable limit."
+        }
+    }
+
+    private var currentLimitsDetail: String {
+        switch store.liveState {
+        case .loading:
+            return "Checking"
+        case .live:
+            return "Live"
+        case .partial:
+            return "Partial"
+        case .signedOut:
+            return "Sign in required"
+        case .failed:
+            return "Unavailable"
+        case .cached:
+            return "Saved"
+        }
+    }
+
+    private var menuResetCountValue: String {
+        switch store.resetCountState {
+        case .loading:
+            return "..."
+        case .unavailable:
+            return "-"
+        case let .known(count):
+            return "\(count)"
+        }
+    }
+
+    private var menuResetCountLabel: String {
+        switch store.resetCountState {
+        case .loading:
+            return "checking reset credits"
+        case .unavailable:
+            return "reset count unavailable"
+        case let .known(count):
+            return count == 1 ? "reset credit available" : "reset credits available"
+        }
+    }
+
+    private var resetCountDetail: String {
+        switch store.resetCountState {
+        case .loading:
+            return "Checking"
+        case .unavailable:
+            return "Count unavailable"
+        case let .known(count):
+            return "\(count) available"
+        }
+    }
+
+    private func resetIconName(for urgency: ResetExpiryUrgency) -> String {
+        switch urgency.level {
+        case .normal:
+            return "calendar.badge.clock"
+        case .approaching, .soon:
+            return "clock.badge.exclamationmark"
+        case .urgent, .expired:
+            return "exclamationmark.octagon.fill"
+        case .inactive:
+            return "clock.badge.xmark"
+        case .unknown:
+            return "calendar.badge.questionmark"
+        }
+    }
+
     private var nudgeRow: some View {
-        HStack(alignment: .center, spacing: CodexStyle.Spacing.rowGap) {
+        HStack(alignment: .top, spacing: CodexStyle.Spacing.rowGap) {
             CodexIconBadge(systemName: store.statusSymbolName, tone: nudgeTone, size: 24, symbolSize: CodexStyle.Icon.menu)
                 .frame(width: CodexStyle.Size.menuIconColumn)
 
-            Text(store.nudge.title)
-                .font(CodexStyle.Typography.menuRowTitle)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(store.nudge.title)
+                        .font(CodexStyle.Typography.menuRowTitle)
+                        .lineLimit(1)
 
-            Text(store.nudge.detail)
-                .font(CodexStyle.Typography.menuRowMeta)
-                .foregroundStyle(CodexPalette.secondaryText)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .frame(width: CodexStyle.Size.menuDateColumn, alignment: .trailing)
+                    Spacer(minLength: 6)
+
+                    Text(store.nudge.detail)
+                        .font(CodexStyle.Typography.menuRowMeta)
+                        .foregroundStyle(CodexPalette.secondaryText)
+                        .lineLimit(1)
+                }
+
+                Text(store.nudge.message)
+                    .font(CodexStyle.Typography.menuRowMeta)
+                    .foregroundStyle(CodexPalette.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .codexRow(background: nudgeTone.background, border: nudgeTone.border, minHeight: 50)
+        .codexRow(background: nudgeTone.background, border: nudgeTone.border, minHeight: 66)
     }
 
     private var nudgeTone: CodexTone {
@@ -523,16 +710,56 @@ struct MenuBarStatusView: View {
 
     private var emptyResetRow: some View {
         HStack(spacing: CodexStyle.Spacing.rowGap) {
-            CodexIconBadge(systemName: "checkmark.seal", tone: .muted, size: 24, symbolSize: CodexStyle.Icon.menu)
+            CodexIconBadge(systemName: emptyResetIconName, tone: .muted, size: 24, symbolSize: CodexStyle.Icon.menu)
                 .frame(width: CodexStyle.Size.menuIconColumn)
 
-            Text("No available resets")
-                .font(CodexStyle.Typography.menuRowTitle)
-                .foregroundStyle(CodexPalette.secondaryText)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(emptyResetTitle)
+                    .font(CodexStyle.Typography.menuRowTitle)
+                    .foregroundStyle(CodexPalette.primaryText)
+
+                Text(emptyResetDetail)
+                    .font(CodexStyle.Typography.menuRowMeta)
+                    .foregroundStyle(CodexPalette.secondaryText)
+                    .lineLimit(1)
+            }
 
             Spacer()
         }
         .codexRow(minHeight: 48)
+    }
+
+    private var emptyResetIconName: String {
+        switch store.resetCountState {
+        case .loading:
+            return "arrow.clockwise"
+        case .unavailable:
+            return "questionmark.circle"
+        case .known:
+            return "checkmark.seal"
+        }
+    }
+
+    private var emptyResetTitle: String {
+        switch store.resetCountState {
+        case .loading:
+            return "Checking reset credits"
+        case .unavailable:
+            return "Reset count unavailable"
+        case .known:
+            return "No reset credits available"
+        }
+    }
+
+    private var emptyResetDetail: String {
+        switch store.resetCountState {
+        case .loading:
+            return "Waiting for Codex to respond."
+        case .unavailable:
+            return "Refresh to try again."
+        case .known:
+            return "Codex reported none."
+        }
     }
 
     private func errorRow(_ message: String) -> some View {

@@ -12,8 +12,25 @@ enum CodexTone: Equatable {
     var foreground: Color {
         switch self {
         case .neutral:
-            return CodexPalette.neutralAccent
+            return CodexPalette.neutralText
         case .selected:
+            return CodexPalette.neutralText
+        case .success:
+            return CodexPalette.availableText
+        case .attention:
+            return CodexPalette.warningText
+        case .warning:
+            return CodexPalette.warningText
+        case .danger:
+            return CodexPalette.urgentText
+        case .muted:
+            return CodexPalette.secondaryText
+        }
+    }
+
+    var meter: Color {
+        switch self {
+        case .neutral, .selected:
             return CodexPalette.neutralAccent
         case .success:
             return CodexPalette.availableGreen
@@ -24,7 +41,7 @@ enum CodexTone: Equatable {
         case .danger:
             return CodexPalette.urgentRed
         case .muted:
-            return CodexPalette.secondaryText
+            return CodexPalette.mutedText
         }
     }
 

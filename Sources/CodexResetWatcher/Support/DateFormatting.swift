@@ -14,6 +14,14 @@ enum DateFormatting {
         return formatter
     }()
 
+    private static let fullFormatter = styleFormatter(date: .medium, time: .short)
+    private static let compactFormatter = templateFormatter("MMM d j:mm")
+    private static let weekdayCompactFormatter = templateFormatter("EEE MMM d j:mm")
+    private static let weekdayDateFormatter = templateFormatter("EEE MMMd")
+    private static let weekdayNameFormatter = templateFormatter("EEEE")
+    private static let timeOnlyFormatter = templateFormatter("jm")
+    private static let expiryFormatter = templateFormatter("MMM d yyyy j:mm")
+
     static func parse(_ value: String?) -> Date? {
         guard let value, !value.isEmpty else {
             return nil
@@ -26,11 +34,7 @@ enum DateFormatting {
             return "-"
         }
 
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        formatter.timeZone = .current
-        return formatter.string(from: date)
+        return displayString(fullFormatter, date: date)
     }
 
     static func compact(_ value: String?) -> String {
@@ -42,10 +46,7 @@ enum DateFormatting {
             return "-"
         }
 
-        let formatter = DateFormatter()
-        formatter.setLocalizedDateFormatFromTemplate("MMM d, h:mm a")
-        formatter.timeZone = .current
-        return formatter.string(from: date)
+        return displayString(compactFormatter, date: date)
     }
 
     static func weekdayCompact(_ value: String?) -> String {
@@ -57,11 +58,7 @@ enum DateFormatting {
             return "-"
         }
 
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "EEE, MMM d 'at' h:mm a"
-        formatter.timeZone = .current
-        return formatter.string(from: date)
+        return displayString(weekdayCompactFormatter, date: date)
     }
 
     static func weekdayDate(_ value: String?) -> String {
@@ -73,11 +70,7 @@ enum DateFormatting {
             return "-"
         }
 
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "EEE, MMM d"
-        formatter.timeZone = .current
-        return formatter.string(from: date)
+        return displayString(weekdayDateFormatter, date: date)
     }
 
     static func weekdayName(_ date: Date?) -> String {
@@ -85,11 +78,7 @@ enum DateFormatting {
             return "-"
         }
 
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "EEEE"
-        formatter.timeZone = .current
-        return formatter.string(from: date)
+        return displayString(weekdayNameFormatter, date: date)
     }
 
     static func timeOnly(_ value: String?) -> String {
@@ -101,11 +90,7 @@ enum DateFormatting {
             return "-"
         }
 
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "h:mm a"
-        formatter.timeZone = .current
-        return formatter.string(from: date)
+        return displayString(timeOnlyFormatter, date: date)
     }
 
     static func expiry(_ value: String?) -> String {
@@ -113,10 +98,7 @@ enum DateFormatting {
             return "-"
         }
 
-        let formatter = DateFormatter()
-        formatter.setLocalizedDateFormatFromTemplate("MMM d, yyyy h:mm a")
-        formatter.timeZone = .current
-        return formatter.string(from: date)
+        return displayString(expiryFormatter, date: date)
     }
 
     static func checked(_ date: Date?) -> String {
@@ -124,11 +106,7 @@ enum DateFormatting {
             return "Not checked yet"
         }
 
-        let formatter = DateFormatter()
-        formatter.dateStyle = .none
-        formatter.timeStyle = .short
-        formatter.timeZone = .current
-        return "Last checked \(formatter.string(from: date))"
+        return "Last checked \(displayString(timeOnlyFormatter, date: date))"
     }
 
     static func resetTime(_ date: Date?) -> String {
@@ -136,11 +114,7 @@ enum DateFormatting {
             return "-"
         }
 
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        formatter.timeZone = .current
-        return formatter.string(from: date)
+        return displayString(fullFormatter, date: date)
     }
 
     static func duration(seconds: Int?) -> String {
@@ -172,5 +146,30 @@ enum DateFormatting {
         }
         let hours = max(1, seconds / 3_600)
         return "\(hours)h limit"
+    }
+
+    private static func templateFormatter(_ template: String) -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = .autoupdatingCurrent
+        formatter.calendar = .autoupdatingCurrent
+        formatter.timeZone = .autoupdatingCurrent
+        formatter.setLocalizedDateFormatFromTemplate(template)
+        return formatter
+    }
+
+    private static func styleFormatter(date: DateFormatter.Style, time: DateFormatter.Style) -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = .autoupdatingCurrent
+        formatter.calendar = .autoupdatingCurrent
+        formatter.timeZone = .autoupdatingCurrent
+        formatter.dateStyle = date
+        formatter.timeStyle = time
+        return formatter
+    }
+
+    private static func displayString(_ formatter: DateFormatter, date: Date) -> String {
+        formatter.string(from: date)
+            .replacingOccurrences(of: "\u{202F}", with: " ")
+            .replacingOccurrences(of: "\u{00A0}", with: " ")
     }
 }

@@ -17,6 +17,8 @@ It reads your existing local Codex Desktop login from `~/.codex/auth.json`, call
 - cached snapshots for previously seen Codex accounts, labeled separately from
   the active account
 - blocked-limit states when Codex says a usage window is unavailable now
+- honest loading, partial, signed-out, and endpoint-failure states instead of
+  presenting missing data as zero or fresh live numbers
 - banked reset credits and expiry dates
 - explicit unavailable-expiry rows when Codex reports a reset count but omits a
   usable expiry record
@@ -35,7 +37,7 @@ No API key is required.
 ## Install
 
 1. Download the versioned zip asset from the latest GitHub release, for example
-   `Codex.Reset.Watcher.v0.3.8.zip`.
+   `Codex.Reset.Watcher.v0.4.0.zip`.
 2. Unzip it.
 3. Drag `Codex Reset Watcher.app` into `/Applications`.
 4. Open it.
@@ -63,6 +65,10 @@ The app uses rule-based advice from the data Codex returns for the current signe
 - Reset credit expiring today: show a use-it-or-lose-it warning before conservative hold advice.
 - Codex says a limit is blocked now: show a blocked state before normal reset
   advice, even if the percentage fields still decode.
+- A low 5-hour window with no banked reset says to wait for the refill rather
+  than implying that a reset can be used.
+- Cached snapshots show last-seen data and neutral copy; they never generate
+  live spend/hold advice.
 
 Reset-credit rows also change urgency as expiry gets close: available, this week, expires soon, ends today, or expired.
 
@@ -129,9 +135,11 @@ header and, when available, the active account id in the `ChatGPT-Account-Id`
 header to those endpoints. It does not redeem resets, mutate account state, or
 store your token anywhere else.
 
-The app rejects non-exact endpoint URLs before sending a request. The trusted
-URLs must be HTTPS `chatgpt.com` endpoints on the known `/backend-api/wham/...`
-paths, with no query string, fragment, userinfo, or custom port.
+The app rejects non-exact endpoint URLs before sending a request and rejects
+redirects away from those URLs. The trusted URLs must be HTTPS `chatgpt.com`
+endpoints on the known `/backend-api/wham/...` paths, with no query string,
+fragment, userinfo, or custom port. Empty, HTML, and semantically unrecognized
+successful responses are treated as errors instead of clearing valid state.
 
 `/wham/usage` currently provides the 5-hour and weekly rate-limit windows. `/wham/rate-limit-reset-credits` provides detailed reset-credit expiry dates. These endpoints are internal and can change without notice.
 
