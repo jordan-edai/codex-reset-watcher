@@ -72,6 +72,9 @@ Menu bar dropdown:
 
 - Keep the active account at the top.
 - Keep the menu bar title focused on the active account only.
+- Keep that title weekly and percentage-only. It must not expose an account
+  label, cached value, 5-hour value, banked-reset count, reset date, weekday,
+  or time.
 - Do not show cached snapshots or cached-snapshot cleanup actions in the menu.
   Account history and selection belong in the full desktop app.
 - Keep the menu's natural-height section order: display settings, current

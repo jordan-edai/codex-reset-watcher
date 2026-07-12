@@ -473,11 +473,7 @@ final class CodexAPIClientTests: XCTestCase {
 
         await store.refresh()
 
-        let weeklyResetDate = Date(timeIntervalSince1970: TimeInterval(weeklyResetAt))
-        let fiveHourResetDate = Date(timeIntervalSince1970: TimeInterval(fiveHourResetAt))
-        XCTAssertEqual(store.menuBarTitle, "63% | \(DateFormatting.weekdayName(weeklyResetDate))")
-        XCTAssertEqual(store.menuBarTitle(for: .weekly), "63% | \(DateFormatting.weekdayName(weeklyResetDate))")
-        XCTAssertEqual(store.menuBarTitle(for: .fiveHour), "29% | \(DateFormatting.timeOnly(fiveHourResetDate))")
+        XCTAssertEqual(store.menuBarTitle, "63%")
         XCTAssertEqual(store.accountDisplayLabel, "builder@example.com")
     }
 
@@ -521,16 +517,57 @@ final class CodexAPIClientTests: XCTestCase {
 
         await store.refresh()
 
-        XCTAssertEqual(store.usageWindow(for: .weekly)?.id, "weekly")
-        XCTAssertEqual(store.usageWindow(for: .fiveHour)?.id, "five-hour")
-        XCTAssertEqual(
-            store.menuBarTitle(for: .weekly),
-            "63% | \(DateFormatting.weekdayName(Date(timeIntervalSince1970: TimeInterval(weeklyResetAt))))"
-        )
-        XCTAssertEqual(
-            store.menuBarTitle(for: .fiveHour),
-            "29% | \(DateFormatting.timeOnly(Date(timeIntervalSince1970: TimeInterval(fiveHourResetAt))))"
-        )
+        XCTAssertEqual(store.usageWindows.first(where: { $0.kind == .weekly })?.id, "weekly")
+        XCTAssertEqual(store.usageWindows.first(where: { $0.kind == .fiveHour })?.id, "five-hour")
+        XCTAssertEqual(store.menuBarTitle, "63%")
+    }
+
+    @MainActor
+    func testMenuBarTitleUsesWeeklyPercentageWhenFiveHourWindowIsMissing() async throws {
+        let client = try makeClient { request in
+            switch request.url?.path {
+            case "/backend-api/wham/rate-limit-reset-credits":
+                let body = #"{"available_count":3,"credits":[]}"#.data(using: .utf8)!
+                return (body, testHTTPResponse(status: 200, contentType: "application/json"))
+
+            case "/backend-api/wham/usage":
+                let body = #"{"rate_limit":{"primary_window":{"used_percent":0,"limit_window_seconds":604800,"reset_after_seconds":604800}}}"#.data(using: .utf8)!
+                return (body, testHTTPResponse(status: 200, contentType: "application/json"))
+
+            default:
+                throw TestError.unexpectedEndpoint
+            }
+        }
+        let store = ResetCreditsStore(client: client, snapshotPersistence: try makeTemporaryPersistence())
+
+        await store.refresh()
+
+        XCTAssertNil(store.usageWindows.first(where: { $0.kind == .fiveHour }))
+        XCTAssertEqual(store.menuBarTitle, "100%")
+        XCTAssertFalse(store.menuBarTitle.contains("reset"))
+    }
+
+    @MainActor
+    func testMenuBarTitleUsesUnknownPercentageWhenNoKnownWindowExists() async throws {
+        let client = try makeClient { request in
+            switch request.url?.path {
+            case "/backend-api/wham/rate-limit-reset-credits":
+                let body = #"{"available_count":3,"credits":[]}"#.data(using: .utf8)!
+                return (body, testHTTPResponse(status: 200, contentType: "application/json"))
+
+            case "/backend-api/wham/usage":
+                let body = #"{"rate_limit":{"primary_window":{"used_percent":20,"reset_after_seconds":3600}}}"#.data(using: .utf8)!
+                return (body, testHTTPResponse(status: 200, contentType: "application/json"))
+
+            default:
+                throw TestError.unexpectedEndpoint
+            }
+        }
+        let store = ResetCreditsStore(client: client, snapshotPersistence: try makeTemporaryPersistence())
+
+        await store.refresh()
+
+        XCTAssertEqual(store.menuBarTitle, "--%")
     }
 
     @MainActor
@@ -569,8 +606,8 @@ final class CodexAPIClientTests: XCTestCase {
 
         XCTAssertEqual(store.usageWindows.map(\.kind), [.generic, .generic])
         XCTAssertEqual(store.usageWindows.map(\.id), ["primary", "secondary"])
-        XCTAssertNil(store.usageWindow(for: .weekly))
-        XCTAssertNil(store.usageWindow(for: .fiveHour))
+        XCTAssertNil(store.usageWindows.first(where: { $0.kind == .weekly }))
+        XCTAssertNil(store.usageWindows.first(where: { $0.kind == .fiveHour }))
     }
 
     @MainActor
@@ -611,7 +648,8 @@ final class CodexAPIClientTests: XCTestCase {
 
         XCTAssertEqual(store.usageWindows.map(\.kind), [.fiveHour, .generic])
         XCTAssertEqual(store.usageWindows.map(\.id), ["five-hour", "secondary"])
-        XCTAssertEqual(store.usageWindow(for: .fiveHour)?.remainingPercent, 80)
+        XCTAssertEqual(store.usageWindows.first(where: { $0.kind == .fiveHour })?.remainingPercent, 80)
+        XCTAssertEqual(store.menuBarTitle, "--%")
     }
 
     @MainActor

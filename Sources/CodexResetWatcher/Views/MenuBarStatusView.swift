@@ -6,21 +6,8 @@ struct MenuBarStatusView: View {
 
     @ObservedObject var store: ResetCreditsStore
     @ObservedObject var mainWindowController: MainWindowController
-    @Binding var menuBarMetricRawValue: String
     @Binding var appearanceModeRawValue: String
     @Environment(\.openWindow) private var openWindow
-
-    private var menuBarMetric: MenuBarMetric {
-        MenuBarMetric(rawValue: menuBarMetricRawValue) ?? .weekly
-    }
-
-    private var menuBarMetricSelection: Binding<String> {
-        Binding {
-            menuBarMetric.rawValue
-        } set: { newValue in
-            menuBarMetricRawValue = MenuBarMetric(rawValue: newValue)?.rawValue ?? MenuBarMetric.weekly.rawValue
-        }
-    }
 
     private var appearanceModeSelection: Binding<String> {
         Binding {
@@ -108,7 +95,6 @@ struct MenuBarStatusView: View {
     private var displaySettingsSection: some View {
         VStack(alignment: .leading, spacing: 7) {
             menuSectionHeader(MenuBarSection.displaySettings.rawValue)
-            menuBarDisplayRow
             appearanceRow
         }
     }
@@ -149,35 +135,6 @@ struct MenuBarStatusView: View {
                 }
             }
         }
-    }
-
-    private var menuBarDisplayRow: some View {
-        HStack(spacing: CodexStyle.Spacing.rowGap) {
-            CodexIconBadge(systemName: "menubar.rectangle", tone: .muted, size: 24, symbolSize: CodexStyle.Icon.menu)
-                .frame(width: CodexStyle.Size.menuIconColumn)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Menu bar")
-                    .font(CodexStyle.Typography.menuRowTitle)
-                    .foregroundStyle(CodexPalette.primaryText)
-                    .lineLimit(1)
-                Text("Week or 5h in title")
-                    .font(CodexStyle.Typography.menuRowMeta)
-                    .foregroundStyle(CodexPalette.secondaryText)
-                    .lineLimit(1)
-            }
-
-            Spacer()
-
-            CodexSegmentedPicker("Menu bar limit", selection: menuBarMetricSelection) {
-                ForEach(MenuBarMetric.allCases) { metric in
-                    Text(metric.pickerTitle)
-                        .tag(metric.rawValue)
-                }
-            }
-            .frame(width: CodexStyle.Size.menuControlWidth)
-        }
-        .codexRow(minHeight: 50)
     }
 
     private var appearanceRow: some View {
@@ -243,7 +200,7 @@ struct MenuBarStatusView: View {
                 .lineLimit(1)
                 .frame(width: CodexStyle.Size.menuMetricColumn, alignment: .trailing)
         }
-        .codexRow(isSelected: menuBarMetric.matches(window.kind), minHeight: 56)
+        .codexRow(isSelected: window.kind == .weekly, minHeight: 56)
     }
 
     private var resetRows: some View {
@@ -664,7 +621,7 @@ struct MenuBarStatusView: View {
         if window.limitReached {
             return "Blocked · \(resetText(window))"
         }
-        if menuBarMetric.matches(window.kind) {
+        if window.kind == .weekly {
             return "Menu bar · \(selectedResetText(window))"
         }
         return resetText(window)

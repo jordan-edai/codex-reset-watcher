@@ -70,53 +70,10 @@ final class ResetCreditsStore: ObservableObject {
     }
 
     var menuBarTitle: String {
-        menuBarTitle(for: .weekly)
-    }
-
-    func menuBarTitle(for metric: MenuBarMetric) -> String {
-        if let window = usageWindow(for: metric),
-           let remaining = window.remainingPercent {
-            return "\(remaining)% | \(menuBarResetCue(for: metric, window: window.window))"
+        if let remaining = usageWindows.first(where: { $0.kind == .weekly })?.remainingPercent {
+            return "\(remaining)%"
         }
-        return resetFallbackTitle
-    }
-
-    func usageWindow(for metric: MenuBarMetric) -> UsageLimitDisplay? {
-        usageWindows.first { metric.matches($0.kind) }
-    }
-
-    private var resetFallbackTitle: String {
-        switch resetCountState {
-        case .loading:
-            return "Checking resets..."
-        case let .known(count):
-            return "\(count) reset\(count == 1 ? "" : "s")"
-        case .unavailable:
-            return "Resets unavailable"
-        }
-    }
-
-    private func menuBarResetCue(for metric: MenuBarMetric, window: UsageLimitWindow) -> String {
-        guard let resetDate = resetDate(for: window) else {
-            return metric.fallbackCue
-        }
-
-        switch metric {
-        case .weekly:
-            return DateFormatting.weekdayName(resetDate)
-        case .fiveHour:
-            return DateFormatting.timeOnly(resetDate)
-        }
-    }
-
-    private func resetDate(for window: UsageLimitWindow) -> Date? {
-        if let resetDate = window.resetDate {
-            return resetDate
-        }
-        guard let seconds = window.resetAfterSeconds else {
-            return nil
-        }
-        return Date().addingTimeInterval(TimeInterval(max(0, seconds)))
+        return "--%"
     }
 
     var statusSymbolName: String {

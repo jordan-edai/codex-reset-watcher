@@ -52,6 +52,9 @@ open "dist/Codex Reset Watcher.app"
 - Menu-bar UI changes require real popover QA. Confirm the dropdown hugs its
   visible rows with no forced-height blank bands, uses the documented section
   order, shows all banked reset dates, and contains no cached-snapshot section.
+- Confirm the compact macOS menu bar title is the weekly percentage only. If
+  weekly data is missing it must show `--%`, never a 5-hour value, reset count,
+  or date; the dropdown must not expose a metric selector.
 - Keep release zips versioned. Do not upload wildcard or stale `dist/` artifacts.
 
 ## Icon

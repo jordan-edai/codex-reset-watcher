@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-07-11
+Last updated: 2026-07-12
 
 ## Summary
 
@@ -17,24 +17,24 @@ https://github.com/jordan-edai/codex-reset-watcher
 Current release:
 
 ```text
-v0.4.2
+v0.4.3
 ```
 
 Latest tracked release state:
 
 ```text
-v0.4.2 natural-height menu and section-order fix
+v0.4.3 percentage-only menu title fix
 ```
 
 Latest local release branch:
 
 ```text
-codex/v0.4.2-natural-menu-height
+codex/v0.4.3-percentage-only-menu-title
 ```
 
-The v0.4.2 fix removes the v0.4.1 screen-sized viewport entirely. The menu now
-hugs its intrinsic content height, uses the requested settings/limits/banked
-expiration order, and leaves cached snapshots in the full desktop app only.
+The v0.4.3 fix makes the compact macOS menu bar title weekly and
+percentage-only. It removes the metric selector and shows `--%` when weekly
+data is unavailable, never a 5-hour value, banked-reset count, or reset date.
 
 ## What Is Shipped
 
@@ -98,12 +98,15 @@ expiration order, and leaves cached snapshots in the full desktop app only.
 - `v0.4.2`: removes that v0.4.1 fallback viewport after it created large blank
   bands, restores intrinsic menu height, reorders the menu sections, renames the
   reset section, and removes cached snapshots from the dropdown.
+- `v0.4.3`: makes the compact menu bar title weekly and percentage-only,
+  removes the metric selector, and prevents missing weekly data from falling
+  back to a 5-hour value or banked-reset count.
 
 ## Current GitHub State
 
 - Repo is public.
 - Repo description: `Local-first macOS menu bar app for Codex usage limits and reset credits.`
-- Latest release is `v0.4.2`.
+- Latest release is `v0.4.3`.
 - `v0.2.0` release asset cleanup was completed; the duplicate generic
   `Codex.Reset.Watcher.zip` was removed and the versioned zip was kept.
 - v0.3.4 audit fixes restored per-snapshot menu navigation, distinguish
@@ -139,6 +142,8 @@ expiration order, and leaves cached snapshots in the full desktop app only.
   dropdown.
 - Release `v0.4.2` corrects the remaining v0.4.1 height regression by removing
   forced menu sizing and simplifying the dropdown to its active-account content.
+- Release `v0.4.3` keeps the title strictly weekly and percentage-only, removes
+  the old display selector, and uses `--%` when weekly data is unavailable.
 - PR #1 shipped usage limits and reset nudges.
 - PR #2 shipped the weekly menu bar title.
 - PR #4 fixed the visible menu bar label and versioned release upload path.
@@ -151,6 +156,9 @@ expiration order, and leaves cached snapshots in the full desktop app only.
 - Keep the app open source.
 - Do not add telemetry or analytics.
 - Do not redeem resets or mutate Codex account state.
+- Keep the compact menu bar title weekly and percentage-only. Use `--%` when
+  weekly data is unavailable; never use 5-hour, reset-credit, date, or generic
+  usage data as a title fallback, and do not restore the metric selector.
 - Do not store Codex bearer tokens outside the running app process.
 - Keep the UI focused on the reset/usage question instead of growing into a
   broader Codex Cockpit.
@@ -278,7 +286,7 @@ unless the user explicitly asks.
 
 ## Latest Local Verification
 
-The `v0.4.2` release candidate was locally verified on 2026-07-11 with:
+The `v0.4.3` release candidate was locally verified on 2026-07-12 with:
 
 ```bash
 swift test --scratch-path /tmp/codex-reset-watcher-test --jobs 1
@@ -288,20 +296,23 @@ CONFIGURATION=release ./script/build_and_run.sh --verify
 plutil -extract CFBundleShortVersionString raw -o - \
   "dist/Codex Reset Watcher.app/Contents/Info.plist"
 codesign --verify --deep --strict "dist/Codex Reset Watcher.app"
-unzip -t "dist/Codex.Reset.Watcher.v0.4.2.zip"
+unzip -t "dist/Codex.Reset.Watcher.v0.4.3.zip"
 strings "dist/Codex Reset Watcher.app/Contents/MacOS/CodexResetWatcher" | rg \
   "youreverydayai|everydayai|acct_|user_|credit-full|eyJ|access_token|refresh_token|id_token|auth\\.json|rate_limit"
 ```
 
 The final string scan returned no matches.
 
-The SwiftPM suite passed 106 tests. The release workflow also checks the tag
+The SwiftPM suite passed 108 tests. The release workflow also checks the tag
 version, universal arm64/x86_64 packaging, signature, zip integrity, and
 sensitive-string scan before publishing an asset.
 
 The packaged app opened successfully during local smoke QA. Screenshot checks
 confirmed the active desktop view, current limits, reset-credit rows, cached
 snapshot sidebar, and the real menu bar title render from the release bundle.
+The title regression suite also covers a missing 5-hour window while three
+resets are banked: the title uses the weekly percentage rather than displaying
+`3 resets`. A legacy 5-hour-only payload produces `--%`.
 Menu-height QA used the reported v0.4.1 screenshot plus an `ImageRenderer`
 geometry check of the real three-reset menu view. The corrected view rendered at
 470 by 740 points with no forced frame, no top/bottom blank bands, the requested

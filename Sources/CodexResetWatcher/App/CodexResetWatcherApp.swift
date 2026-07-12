@@ -4,14 +4,9 @@ import SwiftUI
 @main
 struct CodexResetWatcherApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @AppStorage("menuBarMetric") private var menuBarMetricRawValue = MenuBarMetric.weekly.rawValue
     @AppStorage("appearanceMode") private var appearanceModeRawValue = CodexAppearanceMode.auto.rawValue
     @StateObject private var store = ResetCreditsStore()
     @StateObject private var mainWindowController = MainWindowController()
-
-    private var menuBarMetric: MenuBarMetric {
-        MenuBarMetric(rawValue: menuBarMetricRawValue) ?? .weekly
-    }
 
     private var appearanceMode: CodexAppearanceMode {
         CodexAppearanceMode(rawValue: appearanceModeRawValue) ?? .auto
@@ -62,7 +57,6 @@ struct CodexResetWatcherApp: App {
             MenuBarStatusView(
                 store: store,
                 mainWindowController: mainWindowController,
-                menuBarMetricRawValue: $menuBarMetricRawValue,
                 appearanceModeRawValue: $appearanceModeRawValue
             )
                 .preferredColorScheme(appearanceMode.colorScheme)
@@ -78,13 +72,13 @@ struct CodexResetWatcherApp: App {
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: store.statusSymbolName)
-                Text(store.menuBarTitle(for: menuBarMetric))
+                Text(store.menuBarTitle)
                     .monospacedDigit()
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Codex Reset Watcher")
-            .accessibilityValue(store.menuBarTitle(for: menuBarMetric))
-            .help("Codex Reset Watcher: \(store.menuBarTitle(for: menuBarMetric))")
+            .accessibilityValue(store.menuBarTitle)
+            .help("Codex Reset Watcher: \(store.menuBarTitle)")
         }
         .menuBarExtraStyle(.window)
     }
