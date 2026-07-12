@@ -6,11 +6,10 @@ Unofficial macOS utility for checking Codex rate-limit windows and banked reset 
 
 It reads your existing local Codex Desktop login from `~/.codex/auth.json`, calls the same internal Codex Desktop endpoints used by the app, and shows:
 
-- current 5-hour usage remaining
 - current weekly usage remaining
 - usage bars that turn green, amber, or red based on remaining capacity
-- menu bar display switching between weekly reset-day and 5h reset-time cues,
-  for example `57% | Sunday` or `80% | 9:50 PM`
+- percentage-only menu bar display for weekly remaining capacity, for example
+  `57%`
 - a natural-height menu dropdown with no forced full-screen viewport
 - Light, Dark, and Auto appearance modes shared by the menu dropdown and main
   window
@@ -38,7 +37,7 @@ No API key is required.
 ## Install
 
 1. Download the versioned zip asset from the latest GitHub release, for example
-   `Codex.Reset.Watcher.v0.4.2.zip`.
+   `Codex.Reset.Watcher.v0.4.3.zip`.
 2. Unzip it.
 3. Drag `Codex Reset Watcher.app` into `/Applications`.
 4. Open it.
@@ -129,6 +128,11 @@ the screen height or wrapped in a forced-height viewport. Its section order is
 by the nudge. Cached snapshots remain available in the full desktop app and are
 not repeated in the menu dropdown.
 
+The compact macOS menu bar title contains only the live weekly remaining
+percentage. There is no display-metric selector. If weekly data is unavailable,
+the title shows `--%`; banked reset counts, legacy 5-hour values, and reset
+timing never replace the weekly percentage.
+
 ## What It Calls
 
 ```text
@@ -148,7 +152,10 @@ endpoints on the known `/backend-api/wham/...` paths, with no query string,
 fragment, userinfo, or custom port. Empty, HTML, and semantically unrecognized
 successful responses are treated as errors instead of clearing valid state.
 
-`/wham/usage` currently provides the 5-hour and weekly rate-limit windows. `/wham/rate-limit-reset-credits` provides detailed reset-credit expiry dates. These endpoints are internal and can change without notice.
+`/wham/usage` currently provides the weekly rate-limit window. The decoder
+remains tolerant of older or variant window payloads. `/wham/rate-limit-reset-credits`
+provides detailed reset-credit expiry dates. These endpoints are internal and
+can change without notice.
 
 ## Privacy
 

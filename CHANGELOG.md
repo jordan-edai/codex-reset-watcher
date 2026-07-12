@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.3 - 2026-07-12
+
+- Makes the macOS menu bar title show only the weekly remaining percentage.
+- Removes the `Week` / `5h` menu-title selector and its persisted preference;
+  weekly is now the single, consistent status metric.
+- Removes reset counts, reset dates, weekdays, and times from the compact menu
+  bar title; those details remain available inside the dropdown.
+- Shows `--%` when Codex returns no trustworthy weekly percentage.
+- Adds regression tests for the reported case where three banked resets and a
+  missing 5-hour window incorrectly produced `3 resets` in the title.
+
 ## 0.4.2 - 2026-07-11
 
 - Removes the v0.4.1 screen-sized menu viewport that created large empty bands

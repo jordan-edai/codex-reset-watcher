@@ -10,9 +10,10 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Public GitHub repo: `https://github.com/jordan-edai/codex-reset-watcher`
 - Canonical local path: `/Users/everydayai/Documents/!Codex Projects/Rate Refresher Project`
 - Compatibility path: `/Users/everydayai/Documents/Rate Refresher Project`
-- Latest shipped release: `v0.4.2`
+- Latest shipped release: `v0.4.3`
 - Check `git log --oneline --decorate -5` for the current `main` commit; this
-  note tracks the repo state through the `v0.4.2` natural-height menu fix.
+  note tracks the repo state through the `v0.4.3` percentage-only menu-title
+  fix.
 - App bundle version is set in `script/build_and_run.sh`.
 
 ## Product Decisions
@@ -27,15 +28,18 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
   - `https://chatgpt.com/backend-api/wham/rate-limit-reset-credits`
 - These endpoints can change without notice. Keep decoding tolerant and failure
   handling partial-data-friendly.
-- The menu bar title should prioritize the selected limit's remaining usage and
-  next reset cue, for example `57% | Sunday` for weekly or `80% | 9:50 PM` for
-  5-hour, with the status icon beside it.
+- The menu bar title must show only the weekly remaining percentage, for example
+  `57%`, with the status icon beside it. Never replace it with a banked-reset
+  count, 5-hour value, reset date, weekday, time, account label, or status
+  sentence.
+- There is no menu-title metric selector. If the weekly window has no
+  trustworthy percentage, show `--%`; do not use 5-hour, generic/unclassified,
+  or reset-credit data as a title fallback.
 - Use an explicit SwiftUI `HStack` label for `MenuBarExtra`; a `Label` can
   collapse to icon-only in the real macOS menu bar even when the title string
   itself is correct.
-- The dropdown includes a persisted `Menu bar` segmented control. `Week` shows
-  weekly remaining usage plus the next weekly reset weekday, and `5h` shows the
-  5-hour remaining usage plus the next 5-hour reset time.
+- Display settings contain appearance only. Do not add a weekly/5-hour
+  menu-title selector back to the dropdown.
 - Reset-credit rows in the dropdown should always label the date, for example
   `Reset 1 expires:`. The 5-hour and weekly usage rows should also label when
   those windows reset.
