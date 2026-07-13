@@ -10,10 +10,9 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
 - Public GitHub repo: `https://github.com/jordan-edai/codex-reset-watcher`
 - Canonical local path: `/Users/everydayai/Documents/!Codex Projects/Rate Refresher Project`
 - Compatibility path: `/Users/everydayai/Documents/Rate Refresher Project`
-- Latest shipped release: `v0.4.3`
+- Latest shipped release: `v0.4.4`
 - Check `git log --oneline --decorate -5` for the current `main` commit; this
-  note tracks the repo state through the `v0.4.3` percentage-only menu-title
-  fix.
+  note tracks the repo state through the `v0.4.4` weekly reset-day title fix.
 - App bundle version is set in `script/build_and_run.sh`.
 
 ## Product Decisions
@@ -28,18 +27,22 @@ Codex usage limits and reset credits. Keep changes scoped to that product.
   - `https://chatgpt.com/backend-api/wham/rate-limit-reset-credits`
 - These endpoints can change without notice. Keep decoding tolerant and failure
   handling partial-data-friendly.
-- The menu bar title must show only the weekly remaining percentage, for example
-  `57%`, with the status icon beside it. Never replace it with a banked-reset
-  count, 5-hour value, reset date, weekday, time, account label, or status
-  sentence.
-- There is no menu-title metric selector. If the weekly window has no
-  trustworthy percentage, show `--%`; do not use 5-hour, generic/unclassified,
-  or reset-credit data as a title fallback.
+- The menu bar title currently shows weekly remaining capacity and the weekly
+  reset weekday, for example `57% | Sunday`, with the status icon beside it.
+  Never replace it with a banked-reset count, account label, or status sentence.
+- There is temporarily no menu-title metric selector while Codex does not return
+  the former 5-hour window. If weekly reset timing is missing, use `week`; if
+  weekly data is unavailable, show `--% | week`. Do not use 5-hour,
+  generic/unclassified, or reset-credit data as a current title fallback.
 - Use an explicit SwiftUI `HStack` label for `MenuBarExtra`; a `Label` can
   collapse to icon-only in the real macOS menu bar even when the title string
   itself is correct.
 - Display settings contain appearance only. Do not add a weekly/5-hour
-  menu-title selector back to the dropdown.
+  menu-title selector back until Codex reliably returns the 5-hour window. Read
+  `MENU_BAR_DISPLAY_PLAN.md` before restoring it.
+- Preserve the dormant 5-hour decoder, snapshot fields, and nudge logic. The
+  5-hour window is expected to return, and its prior display design is recorded
+  in `MENU_BAR_DISPLAY_PLAN.md`.
 - Reset-credit rows in the dropdown should always label the date, for example
   `Reset 1 expires:`. The 5-hour and weekly usage rows should also label when
   those windows reset.
