@@ -63,10 +63,12 @@ the visual priority.
 - Keep the desktop multi-account sidebar native and lightweight: one icon, one
   account label line, and one cached/active/stale detail line. Put dense metrics
   in the detail pane, not the sidebar.
-- Keep the menu bar title weekly and percentage-only. There is no metric
-  selector. The compact title must never show reset counts, 5-hour values,
-  reset dates, weekdays, times, account labels, or status copy. If weekly data
-  is unavailable, show `--%`.
+- Keep the current menu bar title compact and weekly: percentage plus reset
+  weekday, for example `57% | Sunday`. There is temporarily no metric selector.
+  Missing timing uses `week`, and missing weekly data uses `--% | week`. Never
+  substitute reset counts, account labels, or status copy.
+- Preserve the former 5-hour design in `MENU_BAR_DISPLAY_PLAN.md`; restore its
+  selector and time cue only after the endpoint reliably returns that window.
 - Menu rows should fit without horizontal clipping. If text gets tight, shorten
   copy before shrinking fonts.
 - Prefer `LimitMeterView` for every usage/capacity bar so color thresholds,
@@ -98,8 +100,8 @@ CONFIGURATION=release ./script/build_and_run.sh --verify
 
 Then open the real macOS menu bar dropdown and check:
 
-- the status title contains only the weekly percentage
-- missing weekly data shows `--%`, never a reset count or 5-hour value
+- the status title shows the weekly percentage and reset weekday
+- missing weekly data shows `--% | week`, never a reset count or 5-hour value
 - the dropdown hugs its content with no large blank bands above or below
 - the section order matches the documented menu order
 - both usage rows are visible without truncating the important reset timing

@@ -70,10 +70,21 @@ final class ResetCreditsStore: ObservableObject {
     }
 
     var menuBarTitle: String {
-        if let remaining = usageWindows.first(where: { $0.kind == .weekly })?.remainingPercent {
-            return "\(remaining)%"
+        guard let weekly = usageWindows.first(where: { $0.kind == .weekly }),
+              let remaining = weekly.remainingPercent else {
+            return "--% | week"
         }
-        return "--%"
+        return "\(remaining)% | \(weeklyResetCue(for: weekly.window))"
+    }
+
+    private func weeklyResetCue(for window: UsageLimitWindow) -> String {
+        if let resetDate = window.resetDate {
+            return DateFormatting.weekdayName(resetDate)
+        }
+        guard let seconds = window.resetAfterSeconds else {
+            return "week"
+        }
+        return DateFormatting.weekdayName(Date().addingTimeInterval(TimeInterval(max(0, seconds))))
     }
 
     var statusSymbolName: String {

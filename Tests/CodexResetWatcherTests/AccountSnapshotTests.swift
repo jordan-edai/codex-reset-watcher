@@ -338,7 +338,7 @@ final class AccountSnapshotStoreTests: XCTestCase {
 
         XCTAssertEqual(store.liveState, .loading)
         XCTAssertEqual(store.resetCountState, .loading)
-        XCTAssertEqual(store.menuBarTitle, "--%")
+        XCTAssertEqual(store.menuBarTitle, "--% | week")
         XCTAssertEqual(store.nudge.title, "Checking Codex")
         XCTAssertFalse(store.detail(for: .active).resetCountState.isKnown)
     }

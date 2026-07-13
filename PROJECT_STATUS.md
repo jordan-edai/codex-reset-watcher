@@ -17,24 +17,25 @@ https://github.com/jordan-edai/codex-reset-watcher
 Current release:
 
 ```text
-v0.4.3
+v0.4.4
 ```
 
 Latest tracked release state:
 
 ```text
-v0.4.3 percentage-only menu title fix
+v0.4.4 weekly percentage and reset-day menu title
 ```
 
 Latest local release branch:
 
 ```text
-codex/v0.4.3-percentage-only-menu-title
+codex/v0.4.4-weekly-reset-day
 ```
 
-The v0.4.3 fix makes the compact macOS menu bar title weekly and
-percentage-only. It removes the metric selector and shows `--%` when weekly
-data is unavailable, never a 5-hour value, banked-reset count, or reset date.
+The v0.4.4 fix keeps the title weekly-only while restoring the weekly reset
+weekday, such as `57% | Sunday`. The 5-hour selector remains dormant until Codex
+returns that window again; its restoration design is in
+`MENU_BAR_DISPLAY_PLAN.md`.
 
 ## What Is Shipped
 
@@ -101,12 +102,15 @@ data is unavailable, never a 5-hour value, banked-reset count, or reset date.
 - `v0.4.3`: makes the compact menu bar title weekly and percentage-only,
   removes the metric selector, and prevents missing weekly data from falling
   back to a 5-hour value or banked-reset count.
+- `v0.4.4`: restores the weekly reset weekday to the menu bar title while
+  preserving the temporary weekly-only UI and documenting the future 5-hour
+  restoration path.
 
 ## Current GitHub State
 
 - Repo is public.
 - Repo description: `Local-first macOS menu bar app for Codex usage limits and reset credits.`
-- Latest release is `v0.4.3`.
+- Latest release is `v0.4.4`.
 - `v0.2.0` release asset cleanup was completed; the duplicate generic
   `Codex.Reset.Watcher.zip` was removed and the versioned zip was kept.
 - v0.3.4 audit fixes restored per-snapshot menu navigation, distinguish
@@ -144,6 +148,8 @@ data is unavailable, never a 5-hour value, banked-reset count, or reset date.
   forced menu sizing and simplifying the dropdown to its active-account content.
 - Release `v0.4.3` keeps the title strictly weekly and percentage-only, removes
   the old display selector, and uses `--%` when weekly data is unavailable.
+- Release `v0.4.4` restores the weekly reset weekday and records the former
+  Week/5h selector design for a deliberate future return.
 - PR #1 shipped usage limits and reset nudges.
 - PR #2 shipped the weekly menu bar title.
 - PR #4 fixed the visible menu bar label and versioned release upload path.
@@ -156,9 +162,12 @@ data is unavailable, never a 5-hour value, banked-reset count, or reset date.
 - Keep the app open source.
 - Do not add telemetry or analytics.
 - Do not redeem resets or mutate Codex account state.
-- Keep the compact menu bar title weekly and percentage-only. Use `--%` when
-  weekly data is unavailable; never use 5-hour, reset-credit, date, or generic
-  usage data as a title fallback, and do not restore the metric selector.
+- Keep the current menu bar title weekly: percentage plus reset weekday. Use
+  `week` when reset timing is missing and `--% | week` when weekly data is
+  unavailable. Never use reset-credit or generic data as a title fallback.
+- Keep the 5-hour selector dormant, not forgotten. Preserve its decoder,
+  snapshot fields, and nudge logic, and follow `MENU_BAR_DISPLAY_PLAN.md` when
+  Codex reliably returns the 5-hour window again.
 - Do not store Codex bearer tokens outside the running app process.
 - Keep the UI focused on the reset/usage question instead of growing into a
   broader Codex Cockpit.
@@ -286,7 +295,7 @@ unless the user explicitly asks.
 
 ## Latest Local Verification
 
-The `v0.4.3` release candidate was locally verified on 2026-07-12 with:
+The `v0.4.4` release candidate was locally verified on 2026-07-12 with:
 
 ```bash
 swift test --scratch-path /tmp/codex-reset-watcher-test --jobs 1
@@ -296,7 +305,7 @@ CONFIGURATION=release ./script/build_and_run.sh --verify
 plutil -extract CFBundleShortVersionString raw -o - \
   "dist/Codex Reset Watcher.app/Contents/Info.plist"
 codesign --verify --deep --strict "dist/Codex Reset Watcher.app"
-unzip -t "dist/Codex.Reset.Watcher.v0.4.3.zip"
+unzip -t "dist/Codex.Reset.Watcher.v0.4.4.zip"
 strings "dist/Codex Reset Watcher.app/Contents/MacOS/CodexResetWatcher" | rg \
   "youreverydayai|everydayai|acct_|user_|credit-full|eyJ|access_token|refresh_token|id_token|auth\\.json|rate_limit"
 ```
@@ -312,7 +321,8 @@ confirmed the active desktop view, current limits, reset-credit rows, cached
 snapshot sidebar, and the real menu bar title render from the release bundle.
 The title regression suite also covers a missing 5-hour window while three
 resets are banked: the title uses the weekly percentage rather than displaying
-`3 resets`. A legacy 5-hour-only payload produces `--%`.
+`3 resets`. A legacy 5-hour-only payload produces `--% | week` during the
+temporary weekly-only phase.
 Menu-height QA used the reported v0.4.1 screenshot plus an `ImageRenderer`
 geometry check of the real three-reset menu view. The corrected view rendered at
 470 by 740 points with no forced frame, no top/bottom blank bands, the requested

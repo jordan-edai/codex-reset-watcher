@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.4 - 2026-07-12
+
+- Restores the weekly reset weekday to the compact menu bar title, for example
+  `57% | Sunday`.
+- Keeps weekly as the only current menu-title metric while Codex is not
+  returning the former 5-hour window.
+- Uses `% | week` when weekly timing is missing and `--% | week` when the
+  weekly percentage is unavailable, without falling back to reset counts.
+- Documents the dormant 5-hour display design and restoration checklist in
+  `MENU_BAR_DISPLAY_PLAN.md` for when Codex returns that window.
+
 ## 0.4.3 - 2026-07-12
 
 - Makes the macOS menu bar title show only the weekly remaining percentage.

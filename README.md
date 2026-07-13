@@ -8,8 +8,8 @@ It reads your existing local Codex Desktop login from `~/.codex/auth.json`, call
 
 - current weekly usage remaining
 - usage bars that turn green, amber, or red based on remaining capacity
-- percentage-only menu bar display for weekly remaining capacity, for example
-  `57%`
+- weekly menu bar status with remaining capacity and reset weekday, for example
+  `57% | Sunday`
 - a natural-height menu dropdown with no forced full-screen viewport
 - Light, Dark, and Auto appearance modes shared by the menu dropdown and main
   window
@@ -128,10 +128,14 @@ the screen height or wrapped in a forced-height viewport. Its section order is
 by the nudge. Cached snapshots remain available in the full desktop app and are
 not repeated in the menu dropdown.
 
-The compact macOS menu bar title contains only the live weekly remaining
-percentage. There is no display-metric selector. If weekly data is unavailable,
-the title shows `--%`; banked reset counts, legacy 5-hour values, and reset
-timing never replace the weekly percentage.
+The compact macOS menu bar title shows the live weekly remaining percentage and
+reset weekday, for example `57% | Sunday`. There is no display-metric selector
+while Codex is not returning the former 5-hour window. Missing reset timing uses
+`week`, and missing weekly data uses `--% | week`; banked reset counts never
+replace the weekly status.
+
+The former Week/5h display design is intentionally preserved for a future
+return of the 5-hour limit. See [MENU_BAR_DISPLAY_PLAN.md](MENU_BAR_DISPLAY_PLAN.md).
 
 ## What It Calls
 
